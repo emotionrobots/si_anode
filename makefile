@@ -25,7 +25,7 @@ ecm.o: ecm.c ecm.h
 itimer.o: itimer.c itimer.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-flash_params.o: flash_params.c flash_params.h
+flash_params.o: flash_params.c flash_params.h cell_chem.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 system.o: system.c system.h

@@ -16,6 +16,32 @@
 #include "globals.h"
 #include "system.h"
 
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn		double _pulse_load(double now, double t_start, double per, double dutycycle, double I_on)
+ *
+ *  @brief	Create a pulse load
+ *
+ *  @param	t:		present time
+ *  @param	t_start:	pulse train origin time
+ *  @param	per:		pulse period
+ *  @param	dutycycle:	pulse ON dutycycle [0,1]
+ *  @param	I_on:		pulse ON current
+ *
+ *  @return	I_load	
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static
+double _pulsed_load(double now, double t_start, double per, double dutycycle, double I_on)
+{
+   double t = now-t_start; 
+   double rem = t - floor(t/per) * per;
+   double ratio = rem/per;
+   return (ratio < dutycycle) ? I_on : 0.0;
+}
+
 
 /*!
  *---------------------------------------------------------------------------------------------------------------------
@@ -74,18 +100,20 @@ int system_update(system_t *sys, double t, double dt)
 {
    if (sys == NULL) return -1;
    
-   if (t > 0 && t < MAX_RUN_TIME)
+   if (t < MAX_RUN_TIME)
    {
-      if (t >= 100.0 && t < 200.0)  
+      if (t >= 0.0 && t < 5.0)  
+         sys->I_load = 0.1;
+      else if (t >= 5.0 && t < 10.0)  
          sys->I_load = 0.0;
-      else if (t >= 200.0 && t < 300.0)
-         sys->I_load = 1.0;
-      else if (t >= 300.0 && t < 500.0)
-         sys->I_load = 0.0;
-      else if (t >= 500.0 && t < 600.0)
-         sys->I_load = -1.0;
+      else if (t >= 10.0 && t < 20.0)
+         sys->I_load = 2.0;
       else
-         sys->I_load = 0.0;
+         sys->I_load = _pulsed_load(t, 20.0, 10.0, 0.5, 3.3);
+   }
+   else
+   {
+      sys->I_load = 0.0;
    }
 
    return 0;

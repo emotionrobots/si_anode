@@ -20,6 +20,7 @@
 #define DEFAULT_CC		(1)		/* Default charging current (A) */
 #define DEFAULT_CV		(4.2)		/* Default charging voltage (V) */
 #define DEFAULT_I_QUIT          (0.02)          /* Quit current (A) */
+#define MAX_LINE_SZ		(200)		/* max command line size */
 
 #define CHG			(-1)
 #define REST			(0)
