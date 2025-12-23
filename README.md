@@ -8,9 +8,9 @@ This project runs a battery simulation that includes three entities:
 - system: the system that represents load and charger
 
 ## Build
-'''
+```
 make                # build 
 make clean          # clean the build
-'''
+```
 
 
