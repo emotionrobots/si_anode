@@ -83,10 +83,7 @@ with the convention:
 The ECM predicts terminal voltage as:
 
 $$
-V = OCV(SOC)
-  + H_{dir}(SOC)
-  + V_{RC}
-  - I \, R_0(SOC, T)
+V = OCV(SOC) + H_{dir}(SOC) + V_{RC} - I \, R_0(SOC, T)
 $$
 
 Where:
@@ -130,21 +127,12 @@ $$
 The RC diffusion branch is modeled as:
 
 $$
-\frac{dV_{RC}}{dt}
-= -\frac{1}{R_1 C_1} V_{RC}
-+ \frac{1}{C_1} I
-$$
+\frac{dV_{RC}}{dt} = -\frac{1}{R_1 C_1} V_{RC} + \frac{1}{C_1} I $$
 
 Discrete update:
 
 $$
-V_{RC,k+1} =
-V_{RC,k}
-+ \Delta t
-\left(
--\frac{V_{RC,k}}{R_1 C_1}
-+ \frac{I_k}{C_1}
-\right)
+V_{RC,k+1} = V_{RC,k} + \Delta t \left( -\frac{V_{RC,k}}{R_1 C_1} + \frac{I_k}{C_1} \right)
 $$
 
 Where:
@@ -175,8 +163,7 @@ $$
 Discrete update:
 
 $$
-H_{k+1} = H_k
-+ \Delta t \frac{H_\infty - H_k}{\tau_H}
+H_{k+1} = H_k + \Delta t \frac{H_\infty - H_k}{\tau_H} 
 $$
 
 ---
@@ -186,24 +173,13 @@ $$
 A lumped thermal model is used:
 
 $$
-\frac{dT}{dt}
-= \frac{1}{C_{th}}
-\left(
-I^2 R_0(SOC,T)
-- \frac{T - T_{amb}}{R_{th}}
-\right)
+\frac{dT}{dt} = \frac{1}{C_{th}} \left( I^2 R_0(SOC,T) - \frac{T - T_{amb}}{R_{th}} \right)
 $$
 
 Discrete update:
 
 $$
-T_{k+1}
-= T_k
-+ \Delta t
-\frac{
-I_k^2 R_0(SOC_k,T_k)
-- \frac{T_k - T_{amb}}{R_{th}}
-}{C_{th}}
+T_{k+1} = T_k + \Delta t \frac{ I_k^2 R_0(SOC_k,T_k) - \frac{T_k - T_{amb}}{R_{th}} }{C_{th}}
 $$
 
 ---
@@ -215,13 +191,7 @@ The tables for $R_0$, $R_1$, and $C_1$ are defined at a reference temperature $T
 Each parameter is scaled using:
 
 $$
-k(T) = k_{ref}
-\exp\left(
--\frac{E_a}{R_g}
-\left(
-\frac{1}{T_K} - \frac{1}{T_{ref,K}}
-\right)
-\right)
+k(T) = k_{ref} \exp\left( -\frac{E_a}{R_g} \left( \frac{1}{T_K} - \frac{1}{T_{ref,K}} \right) \right)
 $$
 
 Where:
@@ -275,18 +245,13 @@ $$
 Predicted mean:
 
 $$
-\hat{\mathbf{x}}_{k+1|k}
-= \sum_i W_i^{(m)} \chi_{k+1|k}^i
+\hat{\mathbf{x}}_{k+1|k} = \sum_i W_i^{(m)} \chi_{k+1|k}^i
 $$
 
 Predicted covariance:
 
 $$
-P_{k+1|k}
-= \sum_i W_i^{(c)}
-(\chi_{k+1|k}^i - \hat{\mathbf{x}}_{k+1|k})
-(\cdot)^T
-+ Q
+P_{k+1|k} = \sum_i W_i^{(c)} (\chi_{k+1|k}^i - \hat{\mathbf{x}}_{k+1|k}) (\cdot)^T + Q
 $$
 
 ---
@@ -314,9 +279,7 @@ $$
 Cross-covariance:
 
 $$
-P_{xz} = \sum_i W_i^{(c)}
-(\chi_{k+1|k}^i - \hat{\mathbf{x}}_{k+1|k})
-(z_k^i - \hat{z}_k)
+P_{xz} = \sum_i W_i^{(c)} (\chi_{k+1|k}^i - \hat{\mathbf{x}}_{k+1|k}) (z_k^i - \hat{z}_k)
 $$
 
 Kalman gain:
@@ -328,9 +291,7 @@ $$
 State update:
 
 $$
-\mathbf{x}_{k+1}
-= \hat{\mathbf{x}}_{k+1|k}
-+ K (z_k - \hat{z}_k)
+\mathbf{x}_{k+1} = \hat{\mathbf{x}}_{k+1|k} + K (z_k - \hat{z}_k)
 $$
 
 Covariance update:
@@ -354,9 +315,7 @@ $$
 Table update (nearest SOC bin):
 
 $$
-R_0^{new}
-= (1-\alpha) R_0^{old}
-+ \alpha R_0^{est}
+R_0^{new} = (1-\alpha) R_0^{old} + \alpha R_0^{est}
 $$
 
 ---
