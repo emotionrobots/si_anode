@@ -21,6 +21,48 @@
 #include "flash_params.h"
 #include "sim.h"
 #include "util.h"
+#include "menu.h"
+
+
+int f_ls(struct _menu *m, int argc, char **argv, void *p_usr)
+{
+   (void)argc;
+   (void)argv;
+
+   while (m != NULL) 
+   {
+      printf("%s  ", m->name);
+      m = m->next;
+   }
+   printf("\n"); 
+   return 0;
+}
+
+
+int f_run(struct _menu *m, int argc, char **argv, void *p_usr)
+{
+   printf("f_run called\n");
+   return 0;
+}
+
+
+int f_cd(struct _menu *m, int argc, char **argv, void *p_usr)
+{
+   printf("f_cd called\n");
+   return 0;
+}
+
+int f_here(struct _menu *m, int argc, char **argv, void *p_usr)
+{
+   printf("f_here called\n");
+   return 0;
+}
+
+int f_there(struct _menu *m, int argc, char **argv, void *p_usr)
+{
+   printf("f_there called\n");
+   return 0;
+}
 
 
 /*!
@@ -34,28 +76,53 @@
  */
 int main()
 {
+   int rc = 0;
    sim_t sim;
    bool done = false;
    bool realtime = false;
    char linebuf[MAX_LINE_SZ];
-   const char delim[] = " \n";
+   int argc = 0;
+   char *argv[MAX_TOKENS];
+   const char delim[] = " \r\n";
+
+
+   menu_t *root = menu_create("ls", "list commands", "", "", f_ls);
+
+   menu_t *run = menu_create("run", "run commands", "", "", f_run);
+   rc = menu_add_peer(root, run);
+
+   menu_t *cd = menu_create("cd", "cd commands", "cd <here | there>", "", f_cd);
+   menu_add_peer(root, cd);
+
+   menu_t *here = menu_create("here", "here commands", "", "", f_here);
+   menu_add_child(cd, here);
+
+   menu_t *there = menu_create("there", "there commands", "", "", f_there);
+   menu_add_peer(here, there);
+
 
    sim_init(&sim);
+
    while (!done)
    {
-      memset(linebuf, 0, sizeof(linebuf));
       printf("> ");
       if (fgets(linebuf, sizeof(linebuf), stdin) != NULL)
       {
+         argc = 0;
+         memset(argv, 0, MAX_TOKENS*sizeof(char *));
          char *token = strtok(linebuf, delim);
-         while (token != NULL) 
+
+	 if (token != NULL && 0==strcmp(token, "quit"))
+            goto _quit;
+
+	 while (token != NULL) 
 	 {
-            if (0==strcmp(token, "quit"))
-               goto _quit;
-	    
-            printf("Token: %s\n", token);
-	    token = strtok(NULL, delim);
+	    argv[argc] = token;
+	    argc++;
+            token = strtok(NULL, delim);
 	 }
+
+         menu_process(root, argc, argv);
       }
       else
       {

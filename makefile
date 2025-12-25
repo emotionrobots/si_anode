@@ -4,7 +4,7 @@ CFLAGS  := -DREALTIME -Wall -Wextra -std=c11 -O2 -pthread
 LDFLAGS := -pthread -lm -lc
 
 TARGET  := app
-OBJS    := system.o fgic.o batt.o ecm.o itimer.o app.o flash_params.o sim.o util.o
+OBJS    := system.o fgic.o batt.o ecm.o itimer.o app.o flash_params.o sim.o util.o menu.o
 
 .PHONY: all clean run
 
@@ -34,7 +34,10 @@ system.o: system.c system.h
 sim.o: sim.c sim.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-app.o: app.c
+menu.o: menu.c menu.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+app.o: app.c menu.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(TARGET): $(OBJS)
