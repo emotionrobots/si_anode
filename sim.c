@@ -136,7 +136,7 @@ int sim_update(sim_t *sim)
 
    if (sim == NULL) return -1;
 
-   // printf("t=%.2f, I_load=%.2f\n", sim->t, sim->system->I_load);
+   printf("t=%.2f, I_load=%.2f\n", sim->t, sim->system->I_load);
 
    rc = system_update(sim->system, sim->t, sim->dt);
    if (rc != 0) return -2;

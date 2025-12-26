@@ -157,9 +157,18 @@ int menu_process(menu_t *m, int argc, char **argv, void *p_usr)
    while (!found) 
    {
       if (m != NULL && 0 == strcmp(argv[0], m->name)) 
+      {
          found = true;
-      else
+      }
+      else if (m->next != NULL)
+      {
          m = m->next;
+      }
+      else
+      {
+         printf("error: command \'%s\' not found.\n", argv[0]);
+         break;
+      }
    }
 
    // If found, process child if present; otherwise call handler
@@ -174,16 +183,13 @@ int menu_process(menu_t *m, int argc, char **argv, void *p_usr)
       }
       else if (m->handler != NULL)                       // No child; call handler if defined
       {							  
-         rc = (*m->handler)(m, argc-1, &argv[1], p_usr);
+         rc = (*m->handler)(m, argc, &argv[0], p_usr);
 	 if (rc < 0)
-            printf("Error %d. Hint: %s\n", rc, m->help);
+            printf("error:%d\thint:%s\n", rc, m->help);
          return rc;
       }
+      printf("error: something is wrong. hint:%s\n", m->help);  
    }
-   
-   printf("  Error: something is wrong...\n");  
-   if (m->help != NULL)
-      printf("  Hint: %s\n", m->help);
 
    return -1;
 }

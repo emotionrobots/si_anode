@@ -1,6 +1,6 @@
 CC      := gcc
-CFLAGS  := -DREALTIME -Wall -Wextra -std=c11 -O2 -pthread
-#CFLAGS  := -Wall -Wextra -std=c11 -O2 -pthread
+#CFLAGS  := -DREALTIME -Wall -Wextra -std=c11 -O2 -pthread
+CFLAGS  := -Wall -Wextra -std=c11 -O2 -pthread
 LDFLAGS := -pthread -lm -lc
 
 TARGET  := app
