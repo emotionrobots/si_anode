@@ -20,38 +20,28 @@
 #include "app_menu.h"
 
 
-double g_tt = 0.0f;
-int g_jj = 0;
-char g_kk[256] = {0};
-
-param_t g_params[] = {
-   { .name="tt", .type="%lf", .value=&g_tt },
-   { .name="jj", .type="%d", .value=&g_jj },
-   { .name="kk", .type="%s", .value=g_kk}
-};
-
 
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		int show_all_params()
+ *  @fn		int show_all_params(sim_t *sim)
  *
  *  @brief	Show all parameter helper functions
  *
  *---------------------------------------------------------------------------------------------------------------------
  */
 static
-int show_all_params()
+int show_all_params(sim_t *sim)
 {
    int rc = -1;
    char *endptr;
 
 
-   for (int i=0; i< sizeof(g_params)/sizeof(param_t); i++)
+   for (int i=0; i< sim->params_sz; i++)
    {
-      char *name = g_params[i].name;
-      char *type = g_params[i].type;
-      void *value = g_params[i].value;
+      char *name = sim->params[i].name;
+      char *type = sim->params[i].type;
+      void *value = sim->params[i].value;
 
       if (0==strcmp(type, "%d"))
          printf("%s:\t type:%s\t value:%d\n", name, type, *(int *)value);
@@ -74,24 +64,24 @@ int show_all_params()
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		int show_params(char *name)
+ *  @fn		int show_params(sim_t *sim, char *name)
  *
  *  @brief	Show command helper function
  *
  *---------------------------------------------------------------------------------------------------------------------
  */
 static
-int show_params(char *name)
+int show_params(sim_t *sim, char *name)
 {
    int rc = -1;
    char *endptr;
 
-   for (int i=0; i< sizeof(g_params)/sizeof(param_t); i++)
+   for (int i=0; i< sim->params_sz; i++)
    {
-      void *value = g_params[i].value;
-      char *type = g_params[i].type;
+      void *value = sim->params[i].value;
+      char *type = sim->params[i].type;
 
-      if (0==strcmp(name, g_params[i].name))
+      if (0==strcmp(name, sim->params[i].name))
       {
          if (0==strcmp(type, "%d"))
             printf("%s:\t type:%s\t value:%d\n", name, type, *(int *)value);
@@ -115,35 +105,35 @@ int show_params(char *name)
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		int set_params(char *name, char *value)
+ *  @fn		int set_params(sim_t *sim, char *name, char *value)
  *
  *  @brief	Set parameter helper function
  * 
  *---------------------------------------------------------------------------------------------------------------------
  */
 static 
-int set_params(char *name, char *value)
+int set_params(sim_t *sim, char *name, char *value)
 {
    int rc = -1;
    char *endptr;
 
-   for (int i=0; i < sizeof(g_params)/sizeof(param_t); i++)
+   for (int i=0; i < sim->params_sz; i++)
    {
-       if (0==strcmp(g_params[i].name, name))
+       if (0==strcmp(sim->params[i].name, name))
        {
-          if (0!=strcmp(g_params[i].type, "%s") && !util_is_numeric(value))
+          if (0!=strcmp(sim->params[i].type, "%s") && !util_is_numeric(value))
              break;
 
-	  if (0==strcmp(g_params[i].type, "%d"))
-             *((int *)g_params[i].value) = atoi(value);
-	  else if (0==strcmp(g_params[i].type, "%l"))
-             *((long *)g_params[i].value) = strtol(value, &endptr, 0);
-	  else if (0==strcmp(g_params[i].type, "%f"))
-             *((float *)g_params[i].value) = strtof(value, &endptr);
-	  else if (0==strcmp(g_params[i].type, "%lf"))
-             *((double *)g_params[i].value) = strtod(value, &endptr);
+	  if (0==strcmp(sim->params[i].type, "%d"))
+             *((int *)sim->params[i].value) = atoi(value);
+	  else if (0==strcmp(sim->params[i].type, "%l"))
+             *((long *)sim->params[i].value) = strtol(value, &endptr, 0);
+	  else if (0==strcmp(sim->params[i].type, "%f"))
+             *((float *)sim->params[i].value) = strtof(value, &endptr);
+	  else if (0==strcmp(sim->params[i].type, "%lf"))
+             *((double *)sim->params[i].value) = strtod(value, &endptr);
           else
-             strcpy((char *)g_params[i].value, value);
+             strcpy((char *)sim->params[i].value, value);
 	  return 0;
        }
    }
@@ -199,13 +189,12 @@ int f_run(struct _menu *m, int argc, char **argv, void *p_usr)
    double t_end = strtod(argv[1], &endptr);
    if (argv[1]!=endptr && errno==0)
    {
-      bool done = false;
-      while (!done)
-      {
-         rc = sim_update(sim);
-	 if (sim->t >= t_end || rc < 0)
-            done = true;
-      }
+      LOCK(&sim->mtx);   
+      sim->t_end = t_end;
+      sim->pause = false;
+      UNLOCK(&sim->mtx);   
+
+      rc = sim_start(sim);
    }
    return rc;
 }
@@ -232,7 +221,7 @@ int f_set(struct _menu *m, int argc, char **argv, void *p_usr)
 
    char *param = argv[1];
    char *value = argv[2];
-   rc = set_params(param, value);
+   rc = set_params(sim, param, value);
 
    return rc;
 }
@@ -256,9 +245,9 @@ int f_show(struct _menu *m, int argc, char **argv, void *p_usr)
    sim_t *sim = (sim_t *)p_usr;
 
    if (argc == 1)
-      rc = show_all_params();
+      rc = show_all_params(sim);
    else if (argc == 2)
-      rc = show_params(argv[1]);
+      rc = show_params(sim, argv[1]);
 
    return rc;
 }
@@ -311,7 +300,6 @@ int f_there(struct _menu *m, int argc, char **argv, void *p_usr)
  */
 menu_t *app_menu_init()
 {
-   
    menu_t *m_root = menu_create("ls", "list commands", "ls", "", f_ls);
 
    menu_t *m_run = menu_create("run", "run simulation for a duration", "run <secs>", "", f_run);

@@ -21,7 +21,6 @@
 
 #include "sim.h"
 #include "menu.h"
-#include "param.h"
 
 menu_t *app_menu_init();
 

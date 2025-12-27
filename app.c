@@ -23,7 +23,7 @@
 #include "util.h"
 #include "menu.h"
 #include "app_menu.h"
-#include "param.h"
+
 
 
 /*!
@@ -38,7 +38,6 @@
 int main()
 {
    int rc = 0;
-   sim_t sim;
    bool done = false;
    bool realtime = false;
    char linebuf[MAX_LINE_SZ];
@@ -46,9 +45,9 @@ int main()
    char *argv[MAX_TOKENS];
    const char delim[] = " \r\n";
 
-   menu_t *m_root = app_menu_init();
 
-   sim_init(&sim);
+   sim_t *sim = sim_create(0.0, DT, TEMP_0);
+   menu_t *m_root = app_menu_init(sim);
 
    while (!done)
    {
@@ -69,7 +68,7 @@ int main()
             token = strtok(NULL, delim);
 	 }
 
-         menu_process(m_root, argc, argv, (void *)&sim);
+         menu_process(m_root, argc, argv, (void *)sim);
       }
       else
       {
@@ -78,7 +77,7 @@ int main()
    }
 
 _quit:
-   sim_cleanup(&sim);
+   sim_destroy(sim);
 }
 
 #undef __APP_C__

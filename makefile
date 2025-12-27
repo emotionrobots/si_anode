@@ -37,7 +37,7 @@ sim.o: sim.c sim.h
 menu.o: menu.c menu.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-app_menu.o: app_menu.c menu.h app_menu.h param.h
+app_menu.o: app_menu.c menu.h app_menu.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 app.o: app.c menu.h app_menu.h

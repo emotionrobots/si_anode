@@ -19,21 +19,25 @@
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		int batt_init(batt_t *batt, flash_params_t *p, double T0_C)
+ *  @fn		batt_t *batt_create(flash_params_t *p, double T0_C)
  *
  *  @brief	Battery init
  *
  *---------------------------------------------------------------------------------------------------------------------
  */
-int batt_init(batt_t *batt, flash_params_t *p, double T0_C)
+batt_t *batt_create(flash_params_t *p, double T0_C)
 {
    if (p == NULL) return -1;
 
-   batt->params = p;
-   batt->ecm = (ecm_t *)malloc(sizeof(ecm_t));
-   int rc = ecm_init(batt->ecm, p, T0_C);
-
-   return rc;
+   batt_t *batt = (batt_t *)calloc(1, sizeof(batt_t));
+   if (batt != NULL)
+   {
+      batt->params = p;
+      batt->ecm = (ecm_t *)malloc(sizeof(ecm_t));
+      int rc = ecm_init(batt->ecm, p, T0_C);
+      if (rc != 0) return NULL;
+   }
+   return batt;
 }
 
 
@@ -55,15 +59,19 @@ int batt_update(batt_t *batt, double I, double T, double t, double dt)
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		int batt_cleanup(batt_t *batt)
+ *  @fn		void batt_destroy(batt_t *batt)
  *
  *  @brief	Clean up battery model
  *
  *---------------------------------------------------------------------------------------------------------------------
  */
-int batt_cleanup(batt_t *batt)
+void batt_destroy(batt_t *batt)
 {
-   if (batt->ecm != NULL) free(batt->ecm);
+   if (batt != NULL)
+   {
+      if (batt->ecm != NULL) free(batt->ecm);
+      free(batt);
+   }
 }
 
 

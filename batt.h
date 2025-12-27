@@ -28,9 +28,9 @@ typedef struct {
 batt_t;
 
 
-int batt_init(batt_t *batt, flash_params_t *p, double T0_C);
+batt_t *batt_create(flash_params_t *p, double T0_C);
 int batt_update(batt_t *batt, double I, double T, double t, double dt);
-int batt_cleanup(batt_t *batt);
+void batt_destroy(batt_t *batt);
 
 
 #endif // __BATT_H__

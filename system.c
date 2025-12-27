@@ -46,42 +46,25 @@ double _pulsed_load(double now, double t_start, double per, double dutycycle, do
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		int system_init(system_t *sys)
+ *  @fn		system_t *system_create()
  *
- *  @brief	System init
+ *  @brief	System creation 
  *
  *  @return 	0 if success; negative otherwise
  *
  *---------------------------------------------------------------------------------------------------------------------
  */
-int system_init(system_t *sys)
+system_t *system_create(fgic_t *fgic)
 {
+   system_t *sys = (system_t *)calloc(1, sizeof(system_t));
+   if (sys==NULL) return NULL;
+
    sys->I_load = 0.0;
    sys->V_chg = DEFAULT_CV;
    sys->I_chg = DEFAULT_CC;
-   sys->fgic = NULL;
-
-   return 0;
-}
-
-/*!
- *---------------------------------------------------------------------------------------------------------------------
- *
- *  @fn		int system_connect_fgic(system_t *sys, fgic_t *fgic)
- *
- *  @brief	Connect system to FGIC
- *
- *  @return 	0 if success; negative otherwise
- *
- *---------------------------------------------------------------------------------------------------------------------
- */
-int system_connect_fgic(system_t *sys, fgic_t *fgic)
-{
-   if (sys == NULL || fgic == NULL) return -1;
-
    sys->fgic = fgic;
 
-   return 0;
+   return sys;
 }
 
 
@@ -98,6 +81,8 @@ int system_connect_fgic(system_t *sys, fgic_t *fgic)
  */
 int system_update(system_t *sys, double t, double dt)
 {
+   (void)dt;
+
    if (sys == NULL) return -1;
    
    if (t < MAX_RUN_TIME)
@@ -145,14 +130,15 @@ int system_get_cccv(system_t *sys)
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		void system_cleanup(system_t *sys)
+ *  @fn		void system_destroy(system_t *sys)
  *
  *  @brief	Cleanup system
  *
  *---------------------------------------------------------------------------------------------------------------------
  */
-void system_cleanup(system_t *sys)
+void system_destroy(system_t *sys)
 {
+   if (sys != NULL) free(sys);
 }
 
 
