@@ -19,6 +19,6 @@
 
 
 int util_msleep(long ms);
-
+bool util_is_numeric(char *str);
 
 #endif // __UTIL_H__

@@ -33,4 +33,21 @@ int util_msleep(long ms)
 }
 
 
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn         bool util_is_numeric(char *str)
+ *
+ *  @brief      Check if a string is numeric
+ *
+ *  @return     true or false
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+bool util_is_numeric(char *str)
+{
+  char *endptr;
+  strtod(str, &endptr);
+  return (str!=endptr);
+}
 
