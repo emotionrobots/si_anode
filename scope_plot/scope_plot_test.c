@@ -60,37 +60,42 @@ int main(void) {
     double dt = 1.0 / 120.0;          // simulation sample step
 
     bool running = true;
+    bool pause = false;
     while (running) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) running = false;
             if (e.type == SDL_KEYDOWN) {
-                if (e.key.keysym.sym == SDLK_ESCAPE) running = false;
+		if (e.key.keysym.sym == SDLK_ESCAPE) running = false;
+                if (e.key.keysym.sym == SDLK_q) pause = !pause;
             }
         }
 
-        // Generate signals
-        double y[3];
-        y[0] = sin(2.0 * M_PI * 0.7 * t);
-        y[1] = cos(2.0 * M_PI * 0.3 * t) * 0.7;
-        y[2] = 0.2 * (2.0 * fmod(t, 5.0) - 5.0); // saw-ish ramp in [-1,1] scaled
+	if (!pause)
+        {
+           // Generate signals
+           double y[3];
+           y[0] = sin(2.0 * M_PI * 0.7 * t);
+           y[1] = cos(2.0 * M_PI * 0.3 * t) * 0.7;
+           y[2] = 0.2 * (2.0 * fmod(t, 5.0) - 5.0); // saw-ish ramp in [-1,1] scaled
 
-        // Push sample
-        scope_plot_push(plot, t, y);
+           // Push sample
+           scope_plot_push(plot, t, y);
 
-        // FIXED X axis range (NOT auto scaled):
-        // emulate a scope by sliding a fixed-length x-window.
-        scope_plot_set_x_range(plot, t - x_window, t);
+           // FIXED X axis range (NOT auto scaled):
+           // emulate a scope by sliding a fixed-length x-window.
+           scope_plot_set_x_range(plot, t - x_window, t);
 
-        // Render
-        scope_plot_render(plot);
-        SDL_RenderPresent(ren);
+           // Render
+           scope_plot_render(plot);
+           SDL_RenderPresent(ren);
 
-        // advance time
-        t += dt;
+           // advance time
+           t += dt;
 
-        // keep t from exploding in long runs (purely cosmetic)
-        if (t > 1e9) t = 0.0;
+           // keep t from exploding in long runs (purely cosmetic)
+           if (t > 1e9) t = 0.0;
+	} 
     }
 
     scope_plot_destroy(plot);
