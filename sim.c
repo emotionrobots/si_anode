@@ -288,10 +288,10 @@ int sim_update(sim_t *sim)
    rc = system_update(sim->system, sim->t, sim->dt);
    if (rc != 0) return -2;
 
-#if 0
-   rc = batt_update(sim->batt, sim->t, sim->dt);
+   rc = batt_update(sim->batt, sim->system->I_load, sim->T_amb_C, sim->t, sim->dt);
    if (rc != 0) return -3; 
 
+#if 0
    rc = fgic_update(sim->fgic, sim->t, sim->dt);
    if (rc != 0) return -4;
 #endif

@@ -258,6 +258,43 @@ int f_show(struct _menu *m, int argc, char **argv, void *p_usr)
 
 /*!
  *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn		int f_log(struct _menu *m, int argc, char **argv, void *p_usr)
+ *
+ *  @brief	Log data to file
+ *
+ *  @note	log <file> <data0> <data1> ...
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static 
+int f_log(struct _menu *m, int argc, char **argv, void *p_usr)
+{
+   int rc = -1;
+   char *endptr;
+
+   if (m==NULL || p_usr==NULL || argv==NULL) return -1;
+   sim_t *sim = (sim_t *)p_usr;
+
+   if (argc <= 2) return -2;
+
+   errno = 0;
+   double t_end = strtod(argv[1], &endptr);
+   if (argv[1]!=endptr && errno==0)
+   {
+      LOCK(&sim->mtx);
+      sim->t_end = t_end;
+      sim->pause = false;
+      UNLOCK(&sim->mtx);
+
+      rc = sim_start(sim);
+   }
+   return rc;
+}
+
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
  *---------------------------------------------------------------------------------------------------------------------
  */
 static 
@@ -314,7 +351,10 @@ menu_t *app_menu_init()
    menu_t *m_show = menu_create("show", "show param value", "show | show <param>", "", f_show);
    menu_add_peer(m_root, m_show);
 
-   menu_t *m_cd = menu_create("cd", "cd commands", "cd <here | there>", "", f_cd);
+   menu_t *m_log = menu_create("log", "log data to file", "log <file> <data0> <data1> ...", "", f_log);
+   menu_add_peer(m_root, m_log);
+
+   menu_t *m_cd = menu_create("cd", "cd command", "cd <here | there>", "", f_cd);
    menu_add_peer(m_root, m_cd);
 
    menu_t *m_here = menu_create("here", "here commands", "here-", "", f_here);
