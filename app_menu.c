@@ -117,10 +117,12 @@ int set_params(sim_t *sim, char *name, char *value)
    int rc = -1;
    char *endptr;
 
+   LOCK(sim);
    for (int i=0; i < sim->params_sz; i++)
    {
        if (0==strcmp(sim->params[i].name, name))
        {
+
           if (0!=strcmp(sim->params[i].type, "%s") && !util_is_numeric(value))
              break;
 
@@ -137,6 +139,7 @@ int set_params(sim_t *sim, char *name, char *value)
 	  return 0;
        }
    }
+   UNLOCK(sim);
 
    return -1;
 }

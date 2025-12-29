@@ -70,7 +70,7 @@ void timer_callback(void *usr_arg)
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		void sim_pause(sim_t *sim, bool do_pause)
+ *  @fn		void sim_set_pause(sim_t *sim, bool do_pause)
  *
  *  @brief	Set/unset pause for the simulation
  *
@@ -86,45 +86,29 @@ void sim_set_pause(sim_t *sim, bool do_pause)
    UNLOCK(&sim->mtx); 
 }
 
-
 /*!
- *--------------------------------------------------------------------------------------------------------------------- 
+ *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		bool sim_get_pause(sim_t *sim)
+ *  @fn         bool sim_get_pause(sim_t *sim)
  *
- *  @brief	Get pause valuea
+ *  @brief      Get simulatlion pause state 
+ *
+ *  @param      sim:            simulation pointer
+ *
+ *  @return	true if paused; false otherwise
+ *
+ *  @note	mutex protected
  *
  *---------------------------------------------------------------------------------------------------------------------
  */
 bool sim_get_pause(sim_t *sim)
 {
-   bool pause = false;
-   LOCK(&sim->mtx); 
-   pause = sim->pause; 
-   UNLOCK(&sim->mtx); 
-
-   return pause;
-}
-
-
-/*!
- *---------------------------------------------------------------------------------------------------------------------
- *
- *  @fn		void sim_check_paused(sim_t *sim)
- *
- *  @brief	Check if need to pause; if so, pause until unpaused
- *
- *---------------------------------------------------------------------------------------------------------------------
- */
-static
-void sim_check_paused(sim_t *sim)
-{
+   bool paused = false;
    LOCK(&sim->mtx);
-   sim->pause = (sim->t >= sim->t_end);
+   paused = sim->pause;
    UNLOCK(&sim->mtx);
 
-   while (sim_get_pause(sim))
-      sched_yield();
+   return paused;
 }
 
 
@@ -144,15 +128,27 @@ void *sim_loop(void *arg)
    sim_t *sim = (sim_t *)arg;
 
    bool done = sim_check_exit(sim);  
+   bool pause = sim->pause;
    while (!done)
    {
+      /* check pause */
+      LOCK(&sim->mtx); 
+      sim->pause |= (sim->t >= sim->t_end);
+      pause = sim->pause; 
+      UNLOCK(&sim->mtx); 
+      while (pause)
+      {
+         LOCK(&sim->mtx); 
+         pause = sim->pause; 
+         UNLOCK(&sim->mtx); 
+         sched_yield();
+      }
+
+      /* update sim */
       LOCK(&sim->mtx); 
       sim_update(sim);  
       done = sim_check_exit(sim);
       UNLOCK(&sim->mtx); 
-
-      sim_check_paused(sim); 
-
       sched_yield();
    }
 
