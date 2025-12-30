@@ -118,7 +118,7 @@ int set_params(sim_t *sim, char *name, char *value)
    int rc = -1;
    char *endptr;
 
-   LOCK(sim);
+   LOCK(&sim->mtx);
    for (int i=0; i < sim->params_sz; i++)
    {
        if (0==strcmp(sim->params[i].name, name))
@@ -140,7 +140,7 @@ int set_params(sim_t *sim, char *name, char *value)
 	  return 0;
        }
    }
-   UNLOCK(sim);
+   UNLOCK(&sim->mtx);
 
    return -1;
 }
@@ -260,9 +260,11 @@ int f_show(struct _menu *m, int argc, char **argv, void *p_usr)
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		int f_log_start(struct _menu *m, int argc, char **argv, void *p_usr)
- }* *  @brief	Start Logging data to file *
- *  @note	log start <file> <data0> <data1> ...
+ *  @fn		int f_log(struct _menu *m, int argc, char **argv, void *p_usr)
+ *
+ *  @brief	Start/stop Logging data to file
+ *
+ *  @note	log <start <file> <data0> <data1> ...> | <stop>
  *
  *---------------------------------------------------------------------------------------------------------------------
  */
@@ -292,7 +294,7 @@ int f_log(struct _menu *m, int argc, char **argv, void *p_usr)
 
    if (0!=strcmp(argv[1], "start")) return -3;
 
-   if (strlen(argv[2]) < LOG_FN_LEN)
+   if (strlen(argv[2]) < FN_LEN)
    {
       strcpy(sim->logfn, argv[2]); 
       if (sim->logfp != NULL) fclose(sim->logfp);
@@ -306,6 +308,7 @@ int f_log(struct _menu *m, int argc, char **argv, void *p_usr)
       /* print params names  */ 
       char *data_name = NULL;
       sim->logn = 0;
+      fprintf(sim->logfp, "t,"); 
       for (int n = 3; n < argc; n++)
       {
          bool found = false;
@@ -335,12 +338,221 @@ int f_log(struct _menu *m, int argc, char **argv, void *p_usr)
    }
    else 
    {
-      printf("error: filename must be < %d.\n", LOG_FN_LEN); 
+      printf("error: filename must be < %d.\n", FN_LEN); 
    }
 
    return rc;
 }
 
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn		int f_plot(struct _menu *m, int argc, char **argv, void *p_usr)
+ *
+ *  @brief	Plot a saved CSV file
+ *
+ *  @note	plot <file> 
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static
+int f_plot(struct _menu *m, int argc, char **argv, void *p_usr)
+{
+   int rc = 0;
+   char *endptr;
+   int idx[MAX_PARAMS];
+   char linebuf[MAX_LINE_SZ];
+   char titlebuf[MAX_LINE_SZ];
+   int nvars = 0;
+   const char *delim = ",\n";
+   scope_trace_desc_t trace[MAX_PARAMS];
+   scope_plot_t *plot=NULL;
+   SDL_Window *win = NULL;
+   SDL_Renderer *ren = NULL;
+
+
+   if (m==NULL || p_usr==NULL || argv==NULL) return -1;
+   sim_t *sim = (sim_t *)p_usr;
+
+   if (argc != 2)
+   {
+      rc = -1;
+      goto _err_ret;
+   }
+
+   /* init scope trace object */
+   memset(trace, 0, sizeof(scope_trace_desc_t));
+   for (int k=0; k<MAX_PARAMS; k++)
+   {
+      trace[k].name = "<no_name>";
+      trace[k].color.r = 255; 
+      trace[k].color.g = 255;
+      trace[k].color.b = 255;
+      trace[k].color.a = 255;
+   }
+
+   FILE *fp = NULL;
+   if ((strlen(argv[1]) < FN_LEN) && (fp = fopen(argv[1], "r")) != NULL)
+   {
+      /* create SDL window */
+      if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0)
+      { 
+         win = SDL_CreateWindow(
+            "scope_plot demo (SDL2)",
+            SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+            1100, 650,
+            SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
+         );
+
+         if (!win) 
+	 {
+            rc = -4;
+	    goto _err_ret;
+         }
+
+         ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+         if (!ren) 
+	 {
+            rc = -5;
+	    goto _err_ret;
+         }
+
+
+         /* read column titles */
+         if (fgets(titlebuf, sizeof(titlebuf), fp) != NULL)
+         {
+            /* read  't' */
+            char *token = strtok(titlebuf, delim);
+            if (0!=strcmp(token, "t")) 
+	    {
+	       rc = -6;
+	       goto _err_ret;
+            }
+	   
+	    /* Process rest of the title line */ 
+	    nvars = 0;
+	    while ( (token = strtok(NULL, delim)) != NULL)
+	    {
+               bool found = false;
+               bool valid = false;
+	       
+	       /* check if trace valid */
+               for (int k=0; k < sim->params_sz; k++)
+	       {
+		  if (0==strcmp(token, sim->params[k].name))
+		  {
+		     found = true;
+		     if (0==strcmp("%d", sim->params[k].type) ||
+		         0==strcmp("%ld", sim->params[k].type) ||  
+		         0==strcmp("%f", sim->params[k].type) ||  
+		         0==strcmp("%lf", sim->params[k].type))
+		     {
+                        trace[nvars++].name = token;
+			valid = true;
+		     }
+		     break;
+		  }
+               }
+
+	       if (!found || !valid)
+	       {
+                  printf("error: found =%d or invalid=%d\n", found, valid);
+		  rc = -7;
+		  goto _err_ret; 
+	       }
+	       
+	    } // while ( (token = strtok(NULL, delim)) != NULL)
+	      
+	 } // if (fgets(titlebuf, sizeof(titlebuf), fp) != NULL)
+
+	 /* setup config */
+	 scope_plot_cfg_t cfg = scope_plot_default_cfg();
+	 cfg.max_points = 6000;
+	 cfg.font_px = 14;
+
+         plot = scope_plot_create(win, ren, nvars, trace, &cfg);
+         if (plot==NULL) 
+	 {
+            rc = -8;
+	    goto _err_ret;
+         }
+
+         scope_plot_set_title(plot, "Signal Scope");
+
+	 SDL_Color bkg_color;
+	 bkg_color.r=12;
+	 bkg_color.b=12; 
+	 bkg_color.g=16; 
+	 bkg_color.a=255;
+
+         scope_plot_set_background(plot, bkg_color);
+ 
+         double x = 0;
+	 double xmin=1e10, xmax=-1e10;
+         double *y = (double *)calloc(nvars, sizeof(double));
+	 char *endptr;
+         while (fgets(linebuf, sizeof(linebuf), fp) != NULL)
+	 {
+            char *token = strtok(linebuf, delim);
+	    x = strtod(token, &endptr);
+            if (x < xmin) xmin = x;
+            if (x > xmax) xmax = x;
+
+	    int i = 0;
+            while ((token = strtok(NULL, strtok)) != NULL)
+	    {
+               
+               if (util_is_numeric(token))
+                  y[i] = strtod(token, &endptr);
+               else
+                  y[i] = 0;
+
+               i++;
+               token = strtok(NULL, delim);
+	    } 
+
+	    scope_plot_push(plot, x, y);
+
+	 } // while (fgets(linebuf, sizeof(linebuf), fp) != NULL)
+         free(y); 
+	   
+	  
+	 scope_plot_set_x_range(plot, xmin, xmax); 
+	 scope_plot_render(plot);
+	 SDL_RenderPresent(ren);
+
+
+	 /* pause graph to wait for key */
+	 bool done = false;
+         SDL_Event e;	
+	 while (!done)
+	 {
+            SDL_PollEvent(&e); 
+            if (e.type == SDL_QUIT) 
+	    {
+	       rc = -8;
+	       goto _err_ret;
+	    }
+	    else if (e.type == SDL_KEYDOWN) 
+	    {
+               done = e.key.keysym.sym == SDLK_ESCAPE;
+	    }
+	 }
+
+
+      } // if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0) 
+
+   } // if ((strlen(argv[1]) < FN_LEN) && (fp = fopen(argv[1], "r")) != NULL)
+     
+_err_ret:
+   if (plot != NULL) scope_plot_destroy(plot);
+   if (ren != NULL) SDL_DestroyRenderer(ren);
+   if (ren != NULL) SDL_DestroyWindow(win);
+   SDL_Quit();
+
+   return rc;
+}
 
 
 /*!
@@ -403,6 +615,9 @@ menu_t *app_menu_init()
 
    menu_t *m_log = menu_create("log", "log data to file", "log <start <file> <data0> <data1> ...> | <stop>", "", f_log);
    menu_add_peer(m_root, m_log);
+
+   menu_t *m_plot = menu_create("plot", "plot a csv file", "plot <file>", "", f_plot);
+   menu_add_peer(m_root, m_plot);
 
    menu_t *m_cd = menu_create("cd", "cd command", "cd <here | there>", "", f_cd);
    menu_add_peer(m_root, m_cd);

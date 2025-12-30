@@ -303,6 +303,7 @@ int sim_update(sim_t *sim)
    memset(fmt, 0, sizeof(fmt));
    if (sim->logn > 0)
    {
+      fprintf(sim->logfp, "%lf, ", sim->t); 
       for (int i=0; i<sim->logn; i++)
       {
          int idx = sim->logi[i];

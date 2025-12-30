@@ -26,7 +26,7 @@
 
 typedef struct {
    FILE *logfp;			/* log file pointer */
-   char logfn[LOG_FN_LEN];	/* log file name */
+   char logfn[FN_LEN];		/* log file name */
    int logi[MAX_PARAMS];	/* log data index */
    int logn;			/* num of log items */
 
