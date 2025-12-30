@@ -1,10 +1,10 @@
 CC      := gcc
 #CFLAGS  := -DREALTIME -Wall -Wextra -std=c11 -O2 -pthread
-CFLAGS  := -Wall -Wextra -std=c11 -O2 -pthread
-LDFLAGS := -pthread -lm -lc
+CFLAGS  += $(shell sdl2-config --cflags) -Wall -Wextra -std=c11 -O2 -pthread
+LDFLAGS := $(shell sdl2-config --libs) -lSDL2_ttf -pthread -lm -lc
 
 TARGET  := app
-OBJS    := system.o fgic.o batt.o ecm.o itimer.o app.o flash_params.o sim.o util.o menu.o app_menu.o
+OBJS    := system.o fgic.o batt.o ecm.o itimer.o app.o flash_params.o sim.o util.o menu.o app_menu.o scope_plot.o
 
 .PHONY: all clean run
 
@@ -38,6 +38,9 @@ menu.o: menu.c menu.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 app_menu.o: app_menu.c menu.h app_menu.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+scope_plot.o: scope_plot.c scope_plot.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 app.o: app.c menu.h app_menu.h

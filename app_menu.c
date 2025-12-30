@@ -18,6 +18,7 @@
 
 #include "menu.h"
 #include "app_menu.h"
+#include "scope_plot.h"
 
 
 
@@ -259,11 +260,9 @@ int f_show(struct _menu *m, int argc, char **argv, void *p_usr)
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		int f_log(struct _menu *m, int argc, char **argv, void *p_usr)
- *
- *  @brief	Log data to file
- *
- *  @note	log <file> <data0> <data1> ...
+ *  @fn		int f_log_start(struct _menu *m, int argc, char **argv, void *p_usr)
+ }* *  @brief	Start Logging data to file *
+ *  @note	log start <file> <data0> <data1> ...
  *
  *---------------------------------------------------------------------------------------------------------------------
  */
@@ -276,21 +275,72 @@ int f_log(struct _menu *m, int argc, char **argv, void *p_usr)
    if (m==NULL || p_usr==NULL || argv==NULL) return -1;
    sim_t *sim = (sim_t *)p_usr;
 
-   if (argc <= 2) return -2;
+   if (argc < 2) 
+      return -2;
 
-   errno = 0;
-   double t_end = strtod(argv[1], &endptr);
-   if (argv[1]!=endptr && errno==0)
+   // log stop
+   if (argc == 2)
    {
-      LOCK(&sim->mtx);
-      sim->t_end = t_end;
-      sim->pause = false;
-      UNLOCK(&sim->mtx);
-
-      rc = sim_start(sim);
+      if (0==strcmp(argv[1], "stop"))
+      {
+         if (sim != NULL && sim->logfp != NULL)
+            fclose(sim->logfp);
+	 return 0;
+      }
+      return -3; 
    }
+
+   if (0!=strcmp(argv[1], "start")) return -3;
+
+   if (strlen(argv[2]) < LOG_FN_LEN)
+   {
+      strcpy(sim->logfn, argv[2]); 
+      if (sim->logfp != NULL) fclose(sim->logfp);
+      sim->logfp = fopen(sim->logfn, "w");
+      if (sim->logfp == NULL) 
+      {
+         printf("error: file %s open error.\n", sim->logfn);
+         return -4; 
+      }
+     
+      /* print params names  */ 
+      char *data_name = NULL;
+      sim->logn = 0;
+      for (int n = 3; n < argc; n++)
+      {
+         bool found = false;
+         data_name = argv[n];
+         for (int i=0; i < sim->params_sz; i++) 
+	 {
+            if (0==strcmp(data_name, sim->params[i].name))
+	    {
+               if (n==argc-1)
+                  fprintf(sim->logfp, "%s", sim->params[i].name); 
+	       else
+                  fprintf(sim->logfp, "%s,", sim->params[i].name); 
+
+	       sim->logn++;
+	       found = true;
+	    }
+	 }
+	 if (!found)
+	 {
+            printf("error: variable \'%s\' not found.\n", data_name);
+	    return -5;
+	 }
+      }
+
+      fprintf(sim->logfp, "\n");
+      rc = 0;
+   }
+   else 
+   {
+      printf("error: filename must be < %d.\n", LOG_FN_LEN); 
+   }
+
    return rc;
 }
+
 
 
 /*!
@@ -351,7 +401,7 @@ menu_t *app_menu_init()
    menu_t *m_show = menu_create("show", "show param value", "show | show <param>", "", f_show);
    menu_add_peer(m_root, m_show);
 
-   menu_t *m_log = menu_create("log", "log data to file", "log <file> <data0> <data1> ...", "", f_log);
+   menu_t *m_log = menu_create("log", "log data to file", "log <start <file> <data0> <data1> ...> | <stop>", "", f_log);
    menu_add_peer(m_root, m_log);
 
    menu_t *m_cd = menu_create("cd", "cd command", "cd <here | there>", "", f_cd);

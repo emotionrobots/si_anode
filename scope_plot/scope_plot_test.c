@@ -53,11 +53,13 @@ int main(void) {
     }
 
     scope_plot_set_title(plot, "Auto Y-scale | Fixed X-window (caller-controlled)");
-    scope_plot_set_background(plot, (SDL_Color){ 12, 12, 16, 255 });
+    //scope_plot_set_background(plot, (SDL_Color){ 12, 12, 16, 255 });
+    scope_plot_set_background(plot, (SDL_Color){ 255, 255, 255, 255 });
 
-    const double x_window = 10.0;     // show last 10 seconds
+    const double x_window = 120.0;     // show last 10 seconds
     double t = 0.0;
-    double dt = 1.0 / 120.0;          // simulation sample step
+    // double dt = 1.0 / 120.0;          // simulation sample step
+    double dt = 0.250;          // simulation sample step
 
     bool running = true;
     bool pause = false;
@@ -75,8 +77,8 @@ int main(void) {
         {
            // Generate signals
            double y[3];
-           y[0] = sin(2.0 * M_PI * 0.7 * t);
-           y[1] = cos(2.0 * M_PI * 0.3 * t) * 0.7;
+           y[0] = sin(2.0 * M_PI * 0.05 * t);
+           y[1] = cos(2.0 * M_PI * 0.01 * t) * 0.7;
            y[2] = 0.2 * (2.0 * fmod(t, 5.0) - 5.0); // saw-ish ramp in [-1,1] scaled
 
            // Push sample

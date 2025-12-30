@@ -19,6 +19,7 @@
 #include "globals.h"
 #include "flash_params.h"
 #include "sim.h"
+#include "scope_plot.h"
 
 
 extern flash_params_t g_flash_params;
@@ -170,6 +171,20 @@ sim_t *sim_create(double t0, double dt, double temp0)
    sim_t *sim = calloc(1, sizeof(sim_t));
    if (sim == NULL) return NULL;
 
+   sim->logfp = NULL;
+   memset(sim->logfn, 0, sizeof(sim->logfn));
+   memset(sim->logi, 0, sizeof(sim->logi));
+   sim->logn = 0;
+
+   /* init scope_plot */
+   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) 
+   {
+      printf("error: cannot init scope.\n");
+      goto err_ret;
+   }
+
+
+   /* init sim */
    sim->t = t0; 
    sim->dt = dt;
 
@@ -198,6 +213,7 @@ sim_t *sim_create(double t0, double dt, double temp0)
    params_init(sim);
 
    return sim;
+
 
 err_ret:
    if (sim != NULL) sim_destroy(sim);
@@ -280,10 +296,36 @@ bool sim_check_exit(sim_t *sim)
 int sim_update(sim_t *sim)
 {
    int rc = 0;
+   char fmt[200];
 
    if (sim == NULL) return -1;
 
-   //printf("t=%.2f, I_load=%.2f\n", sim->t, sim->system->I_load);
+   memset(fmt, 0, sizeof(fmt));
+   if (sim->logn > 0)
+   {
+      for (int i=0; i<sim->logn; i++)
+      {
+         int idx = sim->logi[i];
+	 char *type = sim->params[idx].type;
+         if (i == sim->logn-1)
+            snprintf(fmt, sizeof(fmt), "%s ", type);
+         else
+            snprintf(fmt, sizeof(fmt), "%s,", type);
+
+         if (0==strcmp(type, "%d")) 
+	    fprintf(sim->logfp, fmt, *(int *)sim->params[i].value); 
+	 else if (0==strcmp(type, "%ld")) 
+	    fprintf(sim->logfp, fmt, *(long *)sim->params[i].value); 
+	 else if (0==strcmp(type, "%f")) 
+	    fprintf(sim->logfp, fmt, *(float *)sim->params[i].value); 
+	 else if (0==strcmp(type, "%lf")) 
+	    fprintf(sim->logfp, fmt, *(double *)sim->params[i].value); 
+	 else 
+	    fprintf(sim->logfp, "%s,", (char *)sim->params[i].value); 
+      }
+      fprintf(sim->logfp, "\n");
+   }
+
 
    rc = system_update(sim->system, sim->t, sim->dt);
    if (rc != 0) return -2;
