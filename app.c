@@ -43,7 +43,7 @@ int main()
    char linebuf[MAX_LINE_SZ];
    int argc = 0;
    char *argv[MAX_TOKENS];
-   const char delim[] = " \r\n";
+   const char delim[] = " \n";
 
 
    sim_t *sim = sim_create(0.0, DT, TEMP_0);

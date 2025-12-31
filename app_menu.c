@@ -45,15 +45,15 @@ int show_all_params(sim_t *sim)
       void *value = sim->params[i].value;
 
       if (0==strcmp(type, "%d"))
-         printf("%s:\t type:%s\t value:%d\n", name, type, *(int *)value);
+         printf("%s (%s):  %d\n", name, type, *(int *)value);
       else if (0==strcmp(type, "%ld"))
-         printf("%s:\t type:%s\t value:%ld\n", name, type, *(long *)value);
+         printf("%s (%s):  %ld\n", name, type, *(long *)value);
       else if (0==strcmp(type, "%f"))
-         printf("%s:\t type:%s\t value:%f\n", name, type, *(float *)value);
+         printf("%s (%s):  %f\n", name, type, *(float *)value);
       else if (0==strcmp(type, "%lf"))
-         printf("%s:\t type:%s\t value:%lf\n", name, type, *(double *)value);
+         printf("%s (%s):  %lf\n", name, type, *(double *)value);
       else
-         printf("%s:\t type:%s\t value:%s\n", name, type, (char *)value);
+         printf("%s (%s):  %s\n", name, type, (char *)value);
       rc = 0;
    }
 
@@ -85,15 +85,15 @@ int show_params(sim_t *sim, char *name)
       if (0==strcmp(name, sim->params[i].name))
       {
          if (0==strcmp(type, "%d"))
-            printf("%s:\t type:%s\t value:%d\n", name, type, *(int *)value);
+            printf("%s (%s):  %d\n", name, type, *(int *)value);
          else if (0==strcmp(type, "%ld"))
-            printf("%s:\t type:%s\t value:%ld\n", name, type, *(long *)value);
+            printf("%s (%s):  %ld\n", name, type, *(long *)value);
          else if (0==strcmp(type, "%f"))
-            printf("%s:\t type:%s\t value:%f\n", name, type, *(float *)value);
+            printf("%s (%s):  %f\n", name, type, *(float *)value);
          else if (0==strcmp(type, "%lf"))
-            printf("%s:\t type:%s\t value:%lf\n", name, type, *(double *)value);
+            printf("%s (%s):  %lf\n", name, type, *(double *)value);
          else
-            printf("%s:\t type:%s\t value:%s\n", name, type, (char *)value);
+            printf("%s (%s):  %s\n", name, type, (char *)value);
          rc = 0;
 	 break;
       }
@@ -308,7 +308,7 @@ int f_log(struct _menu *m, int argc, char **argv, void *p_usr)
       /* print params names  */ 
       char *data_name = NULL;
       sim->logn = 0;
-      fprintf(sim->logfp, "t,"); 
+      fprintf(sim->logfp, "t "); 
       for (int n = 3; n < argc; n++)
       {
          bool found = false;
@@ -320,9 +320,9 @@ int f_log(struct _menu *m, int argc, char **argv, void *p_usr)
                if (n==argc-1)
                   fprintf(sim->logfp, "%s", sim->params[i].name); 
 	       else
-                  fprintf(sim->logfp, "%s,", sim->params[i].name); 
+                  fprintf(sim->logfp, "%s ", sim->params[i].name); 
 
-	       sim->logn++;
+	       sim->logi[sim->logn++] = i;
 	       found = true;
 	    }
 	 }
@@ -365,7 +365,7 @@ int f_plot(struct _menu *m, int argc, char **argv, void *p_usr)
    char linebuf[MAX_LINE_SZ];
    char titlebuf[MAX_LINE_SZ];
    int nvars = 0;
-   const char *delim = ",\n";
+   const char delim[] = " \n";
    scope_trace_desc_t trace[MAX_PARAMS];
    scope_plot_t *plot=NULL;
    SDL_Window *win = NULL;
@@ -429,7 +429,7 @@ int f_plot(struct _menu *m, int argc, char **argv, void *p_usr)
 	       rc = -6;
 	       goto _err_ret;
             }
-	   
+
 	    /* Process rest of the title line */ 
 	    nvars = 0;
 	    while ( (token = strtok(NULL, delim)) != NULL)
@@ -494,24 +494,39 @@ int f_plot(struct _menu *m, int argc, char **argv, void *p_usr)
 	 char *endptr;
          while (fgets(linebuf, sizeof(linebuf), fp) != NULL)
 	 {
+            /* get x (or t) */
             char *token = strtok(linebuf, delim);
 	    x = strtod(token, &endptr);
             if (x < xmin) xmin = x;
             if (x > xmax) xmax = x;
 
+	    /* get y */
 	    int i = 0;
-            while ((token = strtok(NULL, strtok)) != NULL)
+	    bool done = false;
+            while (!done)
 	    {
-               
-               if (util_is_numeric(token))
-                  y[i] = strtod(token, &endptr);
-               else
-                  y[i] = 0;
-
-               i++;
-               token = strtok(NULL, delim);
+	       token = strtok(NULL, delim); 
+	       if (token != NULL)
+	       {
+                  if (util_is_numeric(token))
+                     y[i] = strtod(token, &endptr);
+                  else
+                     y[i] = 0;
+                  i++;
+	       }
+	       else
+	       {
+                  done = true;
+	       }
 	    } 
 
+	    if (i != nvars)
+	    {
+               printf("error: parsing i=%d nvar=%d\n", i, nvars);
+	       free(y);
+	       rc= -1;
+	       goto _err_ret;
+            }
 	    scope_plot_push(plot, x, y);
 
 	 } // while (fgets(linebuf, sizeof(linebuf), fp) != NULL)
@@ -531,7 +546,7 @@ int f_plot(struct _menu *m, int argc, char **argv, void *p_usr)
             SDL_PollEvent(&e); 
             if (e.type == SDL_QUIT) 
 	    {
-	       rc = -8;
+	       rc = 0;
 	       goto _err_ret;
 	    }
 	    else if (e.type == SDL_KEYDOWN) 

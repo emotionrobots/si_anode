@@ -26,7 +26,7 @@
 #define DEFAULT_I_QUIT          (0.02)          /* Quit current (A) */
 #define MAX_LINE_SZ		(200)		/* max command line size */
 #define MAX_TOKENS		(10)		/* max number of command line tokens */
-#define MAX_PARAMS		(10)		/* max number of string-enabled parameters */
+#define MAX_PARAMS		(100)		/* max number of string-enabled parameters */
 #define FN_LEN			(80)		/* logfile name length */
 
 

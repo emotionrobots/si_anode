@@ -318,13 +318,13 @@ int ecm_lookup_c1(const ecm_t *ecm, double soc, double *val)
 /*! 
  *--------------------------------------------------------------------------------------------------------------------- 
  *
- * @fn		int ecm_update(ecm_t *ecm, double I, double T_amb, double t, double dt)
+ * @fn		int ecm_update(ecm_t *ecm, double I, double T, double t, double dt)
  * 
  * @brief	Compute the ECM dynamics one time step
  *
  * @param	ecm   : ECM instance
  * @param	I     : cell current [A], I > 0 = discharge, I < 0 = charge
- * @param	T_a   : ambient temperature [°C]
+ * @param	T     : cell temperature [°C]
  * @param	dt    : time step [s]
  *
  * @note	States updated: soc, v_rc, T, chg_state
@@ -332,8 +332,11 @@ int ecm_lookup_c1(const ecm_t *ecm, double soc, double *val)
  *
  *--------------------------------------------------------------------------------------------------------------------- 
  */
-int ecm_update(ecm_t *ecm, double I, double T_amb, double t, double dt)
+int ecm_update(ecm_t *ecm, double I, double T, double t, double dt)
 {
+    ecm->I = I;
+    ecm->T_C = T;
+
     /* SOC update: I>0 discharge, I<0 charge */
     double dSOC = -(ecm->I * dt) / (ecm->Q_Ah * 3600.0);
     ecm->soc = clamp(ecm->soc + dSOC, 0.0, 1.0);

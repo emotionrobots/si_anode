@@ -38,6 +38,15 @@ static
 int params_init(sim_t *sim)
 {
    int i=0;
+
+   if (sim == NULL) return -1;
+
+   batt_t *batt = sim->batt;
+   fgic_t *fgic = sim->fgic;
+   system_t *system = sim->system;
+
+   if (batt==NULL || fgic==NULL || system==NULL) return -1;
+
    sim->params[i].name = "t";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->t;
@@ -45,6 +54,70 @@ int params_init(sim_t *sim)
    sim->params[i].name = "dt";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->dt;
+
+   sim->params[i].name = "V_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->v_batt;
+
+   sim->params[i].name = "I_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->I;
+
+   sim->params[i].name = "V_oc";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->v_oc;
+
+   sim->params[i].name = "T_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->T_C;
+
+   sim->params[i].name = "soc_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->soc;
+
+   sim->params[i].name = "H_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->H;
+
+   sim->params[i].name = "Qmax_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->Q_Ah;
+
+   sim->params[i].name = "C_th_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->C_th;
+
+   sim->params[i].name = "R_th_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->R_th;
+
+   sim->params[i].name = "Ea_R0_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->Ea_R0;
+
+   sim->params[i].name = "Ea_R1_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->Ea_R1;
+
+   sim->params[i].name = "Ea_C1_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->Ea_C1;
+
+   sim->params[i].name = "chg_state_batt";
+   sim->params[i].type = "%d";
+   sim->params[i++].value= &sim->batt->ecm->chg_state;
+
+   sim->params[i].name = "prev_chg_state_batt";
+   sim->params[i].type = "%d";
+   sim->params[i++].value= &sim->batt->ecm->prev_chg_state;
+
+   sim->params[i].name = "I_load";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->system->I_load;
+
+   sim->params[i].name = "T_amb_C";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->T_amb_C;
 
    sim->params_sz = i;
    return i;
@@ -187,6 +260,7 @@ sim_t *sim_create(double t0, double dt, double temp0)
    /* init sim */
    sim->t = t0; 
    sim->dt = dt;
+   sim->T_amb_C = TEMP_0;
 
    sim->realtime = false;
    sim->done = false;
@@ -287,6 +361,51 @@ bool sim_check_exit(sim_t *sim)
 /*!
  *----------------------------------------------------------------------------------------------------------------------
  *
+ *  @fn		int sim_update_log(sim_t *sim)
+ *
+ *  @brief	Update logging
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static
+int sim_update_log(sim_t *sim)
+{
+   char fmt[200];
+   memset(fmt, 0, sizeof(fmt));
+
+   if (sim != NULL && sim->logn > 0)
+   {
+      fprintf(sim->logfp, "%lf ", sim->t); 
+      for (int i=0; i<sim->logn; i++)
+      {
+         int idx = sim->logi[i];
+         char *type = sim->params[idx].type;
+         if (i == sim->logn-1)
+            snprintf(fmt, sizeof(fmt), "%s", type);
+         else
+            snprintf(fmt, sizeof(fmt), "%s ", type);
+
+         if (0==strcmp(type, "%d")) 
+            fprintf(sim->logfp, fmt, *(int *)sim->params[idx].value); 
+         else if (0==strcmp(type, "%ld")) 
+            fprintf(sim->logfp, fmt, *(long *)sim->params[idx].value); 
+         else if (0==strcmp(type, "%f")) 
+            fprintf(sim->logfp, fmt, *(float *)sim->params[idx].value); 
+         else if (0==strcmp(type, "%lf")) 
+            fprintf(sim->logfp, fmt, *(double *)sim->params[idx].value); 
+         else 
+            fprintf(sim->logfp, "%s", (char *)sim->params[idx].value); 
+      }
+      fprintf(sim->logfp, "\n");
+      return 0;
+   }
+   return -1;
+}
+
+
+/*!
+ *----------------------------------------------------------------------------------------------------------------------
+ *
  *  @fn		int sim_update(sim_t *sim)
  *
  *  @brief	Perform simulation update one time step
@@ -296,50 +415,25 @@ bool sim_check_exit(sim_t *sim)
 int sim_update(sim_t *sim)
 {
    int rc = 0;
-   char fmt[200];
 
    if (sim == NULL) return -1;
 
-   memset(fmt, 0, sizeof(fmt));
-   if (sim->logn > 0)
-   {
-      fprintf(sim->logfp, "%lf, ", sim->t); 
-      for (int i=0; i<sim->logn; i++)
-      {
-         int idx = sim->logi[i];
-	 char *type = sim->params[idx].type;
-         if (i == sim->logn-1)
-            snprintf(fmt, sizeof(fmt), "%s ", type);
-         else
-            snprintf(fmt, sizeof(fmt), "%s,", type);
-
-         if (0==strcmp(type, "%d")) 
-	    fprintf(sim->logfp, fmt, *(int *)sim->params[i].value); 
-	 else if (0==strcmp(type, "%ld")) 
-	    fprintf(sim->logfp, fmt, *(long *)sim->params[i].value); 
-	 else if (0==strcmp(type, "%f")) 
-	    fprintf(sim->logfp, fmt, *(float *)sim->params[i].value); 
-	 else if (0==strcmp(type, "%lf")) 
-	    fprintf(sim->logfp, fmt, *(double *)sim->params[i].value); 
-	 else 
-	    fprintf(sim->logfp, "%s,", (char *)sim->params[i].value); 
-      }
-      fprintf(sim->logfp, "\n");
-   }
-
-
-   rc = system_update(sim->system, sim->t, sim->dt);
+   rc = sim_update_log(sim);
    if (rc != 0) return -2;
 
+   rc = system_update(sim->system, sim->t, sim->dt);
+   if (rc != 0) return -3;
+
    rc = batt_update(sim->batt, sim->system->I_load, sim->T_amb_C, sim->t, sim->dt);
-   if (rc != 0) return -3; 
+   if (rc != 0) return -4; 
 
 #if 0
    rc = fgic_update(sim->fgic, sim->t, sim->dt);
-   if (rc != 0) return -4;
+   if (rc != 0) return -5;
 #endif
 
    sim->t += sim->dt;
+
    return rc; 
 }
 
