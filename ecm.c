@@ -334,6 +334,7 @@ int ecm_lookup_c1(const ecm_t *ecm, double soc, double *val)
  */
 int ecm_update(ecm_t *ecm, double I, double T, double t, double dt)
 {
+    int rc = 0;
     ecm->I = I;
     ecm->T_C = T;
 
@@ -341,30 +342,40 @@ int ecm_update(ecm_t *ecm, double I, double T, double t, double dt)
     double dSOC = -(ecm->I * dt) / (ecm->Q_Ah * 3600.0);
     ecm->soc = clamp(ecm->soc + dSOC, 0.0, 1.0);
 
-    /* RC branch update */
+    /* model param update */
     ecm_lookup_r1(ecm, ecm->soc, &ecm->R1);
     ecm->R1 = arrhenius_scale(ecm->R1, ecm->Ea_R1, ecm->T_C, ecm->params->T_ref_C); 
     ecm_lookup_c1(ecm, ecm->soc, &ecm->C1);
     ecm->C1 = arrhenius_scale(ecm->C1, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);  
-    
-    double dVRC = dt * ( -ecm->v_rc / (ecm->R1 * ecm->C1) + ecm->I / ecm->C1 );
-    ecm->v_rc += dVRC;
-
-    /* Thermal update */
     ecm_lookup_r0(ecm, ecm->soc, &ecm->R0);
     ecm->R0 = arrhenius_scale(ecm->R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
+
+    /* update vrc and v_oc */
+    ecm->v_rc += dt * ( -ecm->v_rc / (ecm->R1 * ecm->C1) + ecm->I / ecm->C1 );
+    ecm_lookup_ocv(ecm, ecm->soc, &ecm->v_oc);
+  
+
+    /* update H */
+    if (ecm->I > ecm->I_quit)
+       ecm_lookup_h_dsg(ecm, ecm->soc, &ecm->H);
+    else if (ecm->I < -ecm->I_quit)
+       ecm_lookup_h_chg(ecm, ecm->soc, &ecm->H);
+
+    /* update v_batt */
+    ecm->v_batt = ecm->v_oc - ecm->H - ecm->v_rc - ecm->I*ecm->R0;
 
     /* Track charging state for hysteresis sign */
     ecm->prev_chg_state = ecm->chg_state;
 
-    if (I > ecm->I_quit) 
+    /* update charging state */
+    if (ecm->I > ecm->I_quit) 
        ecm->chg_state = DSG; 		/* discharge */ 
-    else if (I < -ecm->I_quit) 
+    else if (ecm->I < -ecm->I_quit) 
        ecm->chg_state = CHG; 		/* charge */
     else
        ecm->chg_state = REST; 		/* rest */
 
-    return 0;
+    return rc;
 }
 
 
