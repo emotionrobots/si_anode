@@ -123,13 +123,9 @@ int set_params(sim_t *sim, char *name, char *value)
    {
        if (0==strcmp(sim->params[i].name, name))
        {
-
-          if (0!=strcmp(sim->params[i].type, "%s") && !util_is_numeric(value))
-             break;
-
 	  if (0==strcmp(sim->params[i].type, "%d"))
              *((int *)sim->params[i].value) = atoi(value);
-	  else if (0==strcmp(sim->params[i].type, "%l"))
+	  else if (0==strcmp(sim->params[i].type, "%ld"))
              *((long *)sim->params[i].value) = strtol(value, &endptr, 0);
 	  else if (0==strcmp(sim->params[i].type, "%f"))
              *((float *)sim->params[i].value) = strtof(value, &endptr);
@@ -137,12 +133,13 @@ int set_params(sim_t *sim, char *name, char *value)
              *((double *)sim->params[i].value) = strtod(value, &endptr);
           else
              strcpy((char *)sim->params[i].value, value);
-	  return 0;
+	  rc = 0;
+	  break;
        }
    }
    UNLOCK(&sim->mtx);
 
-   return -1;
+   return rc;
 }
 
 /*!
@@ -468,7 +465,7 @@ int f_plot(struct _menu *m, int argc, char **argv, void *p_usr)
 
 	 /* setup config */
 	 scope_plot_cfg_t cfg = scope_plot_default_cfg();
-	 cfg.max_points = 6000;
+	 cfg.max_points = MAX_PLOT_PTS;
 	 cfg.font_px = 14;
 
          plot = scope_plot_create(win, ren, nvars, trace, &cfg);

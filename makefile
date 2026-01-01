@@ -5,48 +5,50 @@ LDFLAGS := $(shell sdl2-config --libs) -lSDL2_ttf -pthread -lm -lc
 
 TARGET  := app
 OBJS    := system.o fgic.o batt.o ecm.o itimer.o app.o flash_params.o sim.o util.o menu.o app_menu.o scope_plot.o
+INCS 	:= *.h 
+
 
 .PHONY: all clean run
 
 all: $(TARGET)
 
-util.o: util.c util.h
+util.o: util.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-batt.o: batt.c batt.h
+batt.o: batt.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-fgic.o: fgic.c fgic.h
+fgic.o: fgic.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-ecm.o: ecm.c ecm.h
+ecm.o: ecm.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-itimer.o: itimer.c itimer.h
+itimer.o: itimer.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-flash_params.o: flash_params.c flash_params.h cell_chem.h
+flash_params.o: flash_params.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-system.o: system.c system.h
+system.o: system.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-sim.o: sim.c sim.h
+sim.o: sim.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-menu.o: menu.c menu.h
+menu.o: menu.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-app_menu.o: app_menu.c menu.h app_menu.h
+app_menu.o: app_menu.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-scope_plot.o: scope_plot.c scope_plot.h
+scope_plot.o: scope_plot.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-app.o: app.c menu.h app_menu.h
+app.o: app.c menu.h $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(TARGET): $(OBJS)
+$(TARGET): $(OBJS) $(INCS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 run: $(TARGET)

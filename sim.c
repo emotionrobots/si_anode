@@ -111,13 +111,49 @@ int params_init(sim_t *sim)
    sim->params[i].type = "%d";
    sim->params[i++].value= &sim->batt->ecm->prev_chg_state;
 
-   sim->params[i].name = "I_load";
+   sim->params[i].name = "I_sys";
    sim->params[i].type = "%lf";
-   sim->params[i++].value= &sim->system->I_load;
+   sim->params[i++].value= &sim->system->I;
+
+   sim->params[i].name = "V_sys";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->system->V;
+
+   sim->params[i].name = "V_chg_sys";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->system->V_chg;
+
+   sim->params[i].name = "I_chg_sys";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->system->I_chg;
 
    sim->params[i].name = "T_amb_C";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->T_amb_C;
+
+   sim->params[i].name = "load_type_sys";
+   sim->params[i].type = "%d";
+   sim->params[i++].value= &sim->system->load_type;
+
+   sim->params[i].name = "I_on_sys";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->system->I_on;
+
+   sim->params[i].name = "I_off_sys";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->system->I_off;
+
+   sim->params[i].name = "per_sys";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->system->per;
+
+   sim->params[i].name = "dutycycle_sys";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->system->dutycycle;
+
+   sim->params[i].name = "t_start_sys";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->system->t_start;
 
    sim->params_sz = i;
    return i;
@@ -201,15 +237,21 @@ void *sim_loop(void *arg)
    if (arg==NULL) return NULL;
    sim_t *sim = (sim_t *)arg;
 
-   bool done = sim_check_exit(sim);  
+   bool done = sim->done || sim_check_exit(sim);  
    bool pause = sim->pause;
    while (!done)
    {
       /* check pause */
       LOCK(&sim->mtx); 
-      sim->pause |= (sim->t >= sim->t_end);
+      if (sim->t >= sim->t_end)
+         sim->pause = true;
+      if (pause && !sim->pause)
+         printf("run resumed.\n");
       pause = sim->pause; 
+      if (pause)
+        printf("run paused.\n");
       UNLOCK(&sim->mtx); 
+
       while (pause)
       {
          LOCK(&sim->mtx); 
@@ -221,10 +263,17 @@ void *sim_loop(void *arg)
       /* update sim */
       LOCK(&sim->mtx); 
       sim_update(sim);  
-      done = sim_check_exit(sim);
+      if (sim_check_exit(sim))
+         sim->done = true;
+      done = sim->done;
       UNLOCK(&sim->mtx); 
+
+      if (done) break;
+
       sched_yield();
    }
+ 
+   printf("run completed at t=%lf\n", sim->t); 
 
    return NULL;
 }
@@ -327,7 +376,15 @@ int sim_start(sim_t *sim)
 void sim_destroy(sim_t *sim)
 {
    if (sim->tm != NULL) itimer_destroy(sim->tm);
+
+   /* kill thread */
+   LOCK(&sim->mtx);
+   sim->pause = false;
+   sim->done = true;
+   UNLOCK(&sim->mtx);
+   pthread_join(*sim->thread, NULL);
    if (sim->thread != NULL) free(sim->thread);
+
    if (sim->system != NULL) system_destroy(sim->system);
    if (sim->fgic != NULL) fgic_destroy(sim->fgic);
    if (sim->batt != NULL) batt_destroy(sim->batt);
@@ -346,13 +403,10 @@ void sim_destroy(sim_t *sim)
  */
 bool sim_check_exit(sim_t *sim)
 {
-   bool do_exit = false;
-  
-   do_exit |= sim->done; 
-#if 0
-   if (sim->batt->v_batt < sim->flash_param.v_end)
-      rc = true;
-#endif
+   bool do_exit = false; 
+
+   if (sim->batt->ecm->soc <= 0.0f)
+      do_exit = true;
 
    return do_exit;
 }
@@ -397,9 +451,8 @@ int sim_update_log(sim_t *sim)
             fprintf(sim->logfp, "%s", (char *)sim->params[idx].value); 
       }
       fprintf(sim->logfp, "\n");
-      return 0;
    }
-   return -1;
+   return 0;
 }
 
 
@@ -418,22 +471,22 @@ int sim_update(sim_t *sim)
 
    if (sim == NULL) return -1;
 
-   rc = sim_update_log(sim);
-   if (rc != 0) return -2;
+   sim_update_log(sim);
 
    rc = system_update(sim->system, sim->t, sim->dt);
-   if (rc != 0) return -3;
+   if (rc != 0) goto _err_ret;
 
-   rc = batt_update(sim->batt, sim->system->I_load, sim->T_amb_C, sim->t, sim->dt);
-   if (rc != 0) return -4; 
+   rc = batt_update(sim->batt, sim->system->I, sim->T_amb_C, sim->t, sim->dt);
+   if (rc != 0) goto _err_ret;
 
 #if 0
    rc = fgic_update(sim->fgic, sim->t, sim->dt);
-   if (rc != 0) return -5;
+   if (rc != 0) goto _err_ret;
 #endif
 
-   sim->t += sim->dt;
+_err_ret:
 
+   sim->t += sim->dt;
    return rc; 
 }
 

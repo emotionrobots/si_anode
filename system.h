@@ -20,10 +20,25 @@
 #include "fgic.h"
 
 
+#define SYS_LOAD_CC 		(0)
+#define SYS_LOAD_PULSE 		(1)
+#define SYS_LOAD_OSC 		(2)
+
+
 typedef struct {
-   double I_load; 			
+   int load_type;
+
+   double I; 			
+   double V; 			
    double V_chg;
    double I_chg;
+
+   double per;
+   double dutycycle;
+   double I_on; 
+   double I_off;
+   double t_start;
+
    fgic_t *fgic;
 }
 system_t;

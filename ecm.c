@@ -179,7 +179,7 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    ecm->Ea_C1 = -10.0;
 
    /* Capacity and thermal */
-   ecm->Q_Ah = 4.0;      /* 4.0 Ah cell (example) */
+   ecm->Q_Ah = Q_DESIGN; /* Ah */
    ecm->C_th = 200.0;    /* Thermal capacity J/°C */
    ecm->R_th = 3.0;      /* Thermal resistance °C/W */
 

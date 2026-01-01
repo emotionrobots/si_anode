@@ -77,7 +77,8 @@ int main()
    }
 
 _quit:
-   sim_destroy(sim);
+   if (m_root != NULL) free(m_root);
+   if (sim != NULL) sim_destroy(sim);
 }
 
 #undef __APP_C__

@@ -34,14 +34,40 @@
  *---------------------------------------------------------------------------------------------------------------------
  */
 static
-double _pulsed_load(double now, double t_start, double per, double dutycycle, double I_on)
+double _pulsed_load(double now, double t_start, double per, double dutycycle, double I_on, double I_off)
 {
    double t = now-t_start; 
    double rem = t - floor(t/per) * per;
    double ratio = rem/per;
-   return (ratio < dutycycle) ? I_on : 0.0;
+   return (ratio < dutycycle) ? I_on : I_off;
 }
 
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn         double _osc_load(double now, double t_start, double per, double I_hi, double I_lo)
+ *
+ *  @brief      Create an sinusoidal load (oscillating)
+ *
+ *  @param      t:              present time
+ *  @param      t_start:        pulse train origin time
+ *  @param      per:            pulse period
+ *  @param      I_hi:           high current
+ *  @param      I_lo:           low current
+ *
+ *  @return     I_load
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static
+double _osc_load(double now, double t_start, double per, double I_on, double I_off)
+{
+   double t = now-t_start;
+   double amp = I_on - I_off;
+   double offset = (I_on + I_off)/2.0;
+   return amp * sin(2.0*M_PI*t/per) + offset;
+}
 
 /*!
  *---------------------------------------------------------------------------------------------------------------------
@@ -57,12 +83,21 @@ double _pulsed_load(double now, double t_start, double per, double dutycycle, do
 system_t *system_create(fgic_t *fgic)
 {
    system_t *sys = (system_t *)calloc(1, sizeof(system_t));
-   if (sys==NULL) return NULL;
+   if (sys==NULL || fgic==NULL) return NULL;
 
-   sys->I_load = 0.0;
-   sys->V_chg = DEFAULT_CV;
-   sys->I_chg = DEFAULT_CC;
    sys->fgic = fgic;
+   sys->load_type = SYS_LOAD_PULSE;
+   sys->V_chg = fgic->V_chg;
+   sys->I_chg = fgic->I_chg;
+
+   sys->I = 0.0;
+   sys->V = 0.0;
+
+   sys->per = 100.0;
+   sys->dutycycle = 0.5;
+   sys->I_on = 2.0;
+   sys->I_off = 0;
+   sys->t_start = 0;
 
    return sys;
 }
@@ -87,20 +122,15 @@ int system_update(system_t *sys, double t, double dt)
    
    if (t < MAX_RUN_TIME)
    {
-      if (t >= 0.0 && t < 5.0)  
-         sys->I_load = 0.1;
-      else if (t >= 5.0 && t < 10.0)  
-         sys->I_load = 0.0;
-      else if (t >= 10.0 && t < 20.0)
-         sys->I_load = 2.0;
-      else
-         sys->I_load = _pulsed_load(t, 20.0, 10.0, 0.5, 3.3);
+      if (sys->load_type==SYS_LOAD_PULSE)
+         sys->I = _pulsed_load(t, sys->t_start, sys->per, sys->dutycycle, sys->I_on, sys->I_off);
+      else if (sys->load_type==SYS_LOAD_OSC)
+         sys->I = _osc_load(t, sys->t_start, sys->per, sys->I_on, sys->I_off);
    }
    else
    {
-      sys->I_load = 0.0;
+      sys->I = 0.0;
    }
-
    return 0;
 }
 
