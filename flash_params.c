@@ -19,8 +19,8 @@ flash_params_t g_flash_params = {
    .r1_tbl  = { R1_TBL },
    .c1_tbl  = { C1_TBL },
 
-   .h_chg_tbl = {0},
-   .h_dsg_tbl = {0},
+   .h_chg_tbl = { H_CHG_TBL },
+   .h_dsg_tbl = { H_DSG_TBL },
 
    .design_capacity = 4.4,                     
    .v_end = 2.5,                              

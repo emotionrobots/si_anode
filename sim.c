@@ -67,6 +67,10 @@ int params_init(sim_t *sim)
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->batt->ecm->I;
 
+   sim->params[i].name = "I_quit";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->I_quit;
+
    sim->params[i].name = "V_oc";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->batt->ecm->v_oc;

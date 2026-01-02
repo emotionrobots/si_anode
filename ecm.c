@@ -173,6 +173,8 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    memset(ecm, 0, sizeof(*ecm));
    ecm->params = p;
 
+   ecm->I_quit = p->I_quit;
+
    /* Arrhenius parameters (example values) */
    ecm->Ea_R0 =  10.0; 
    ecm->Ea_R1 =  10.0;
@@ -192,6 +194,7 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    ecm->I = ecm->prev_I;
    ecm->T_C = T0_C;
    ecm->v_rc = 0.0;
+   ecm->H = ecm->params->h_dsg_tbl[SOC_GRIDS-1];;
 
    ecm->I_quit = DEFAULT_I_QUIT;
 
@@ -372,12 +375,11 @@ int ecm_update(ecm_t *ecm, double I, double T, double t, double dt)
     }
     else
     {
-       ecm->chg_state = REST; 		/* rest */
+       ecm->chg_state = REST; 		/* rest, H no-change */
     }
 
-
     /* update v_batt */
-    ecm->v_batt = ecm->v_oc - ecm->H - ecm->v_rc - ecm->I*ecm->R0;
+    ecm->v_batt = (ecm->v_oc + ecm->H) - ecm->v_rc - ecm->I*ecm->R0;
 
     return rc;
 }
