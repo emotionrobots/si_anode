@@ -176,6 +176,30 @@ void timer_callback(void *usr_arg)
    sim_update(sim);
 }
 
+/*!
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn         bool sim_check_pause(sim_t *sim)
+ *
+ *  @brief      Check if simulation should pause 
+ *
+ *  @note       Unprotected 
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static
+bool sim_check_pause(sim_t *sim)
+{
+   bool do_pause = false;
+   batt_t *batt = sim->batt;
+
+   if (batt->ecm->chg_state==CHG && batt->ecm->soc >= 1.0f) do_pause = true;
+   if (batt->ecm->chg_state==DSG && batt->ecm->soc <= 0.0f) do_pause = true;
+   if (sim->t >= sim->t_end) do_pause = true;
+
+   return do_pause;
+}
+
 
 /*!
  *---------------------------------------------------------------------------------------------------------------------
@@ -237,19 +261,19 @@ void *sim_loop(void *arg)
    if (arg==NULL) return NULL;
    sim_t *sim = (sim_t *)arg;
 
-   bool done = sim->done || sim_check_exit(sim);  
-   bool pause = sim->pause;
+   bool done = sim->done;
+   bool pause = sim->pause;  
    while (!done)
    {
       /* check pause */
       LOCK(&sim->mtx); 
-      if (sim->t >= sim->t_end)
+      if (sim_check_pause(sim))
          sim->pause = true;
       if (pause && !sim->pause)
-         printf("run resumed.\n");
+         printf("run resumed from t=%lf\n", sim->t);
       pause = sim->pause; 
       if (pause)
-        printf("run paused.\n");
+         printf("run paused at t=%lf\n", sim->t);
       UNLOCK(&sim->mtx); 
 
       while (pause)
@@ -263,8 +287,6 @@ void *sim_loop(void *arg)
       /* update sim */
       LOCK(&sim->mtx); 
       sim_update(sim);  
-      if (sim_check_exit(sim))
-         sim->done = true;
       done = sim->done;
       UNLOCK(&sim->mtx); 
 
@@ -315,6 +337,7 @@ sim_t *sim_create(double t0, double dt, double temp0)
    sim->done = false;
    sim->pause = true;
 
+
    sim->batt = batt_create(&g_flash_params, temp0);
    if (sim->batt == NULL) goto err_ret;
 
@@ -324,16 +347,19 @@ sim_t *sim_create(double t0, double dt, double temp0)
    sim->system = (system_t *)system_create(sim->fgic);
    if (sim->system == NULL) goto err_ret;
 
+   params_init(sim);
+
+   sim->tm = itimer_create(timer_callback, sim);
+   if (sim->tm == NULL) goto err_ret;
+
    if (pthread_mutex_init(&sim->mtx, NULL) != 0)
       goto err_ret;
 
    sim->thread = (pthread_t *)calloc(1, sizeof(pthread_t));
    if (sim->thread == NULL) goto err_ret;
 
-   sim->tm = itimer_create(timer_callback, sim);
-   if (sim->tm == NULL) goto err_ret;
-
-   params_init(sim);
+   if (pthread_create(sim->thread, NULL, sim_loop, sim) != 0)
+      goto err_ret;
 
    return sim;
 
@@ -347,20 +373,48 @@ err_ret:
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		int sim_start(sim_t *sim)
+ *  @fn		int sim_run_start(sim_t *sim)
  *
- *  @brief	Start simulation
+ *  @brief	Start simulation run
  *
  *---------------------------------------------------------------------------------------------------------------------
  */
-int sim_start(sim_t *sim)
+int sim_run_start(sim_t *sim)
 {
    if (sim == NULL) return -1;
 
    if (sim->realtime)
+   {
       return itimer_start(sim->tm, sim->fgic->period);
+   }
    else 
-      return pthread_create(sim->thread, NULL, sim_loop, sim);
+   {
+      sim_set_pause(sim, false); 
+      return 0;
+   }
+}
+
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn         int sim_run_stop(sim_t *sim)
+ *
+ *  @brief      Stop simulation run
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+int sim_run_stop(sim_t *sim)
+{
+   if (sim == NULL) return -1;
+
+   if (sim->realtime)
+      return itimer_stop(sim->tm);
+   else
+   {
+      sim_set_pause(sim, true);
+      return 0;
+   }
 }
 
 
@@ -390,26 +444,6 @@ void sim_destroy(sim_t *sim)
    if (sim->batt != NULL) batt_destroy(sim->batt);
 }
 
-
-
-/*!
- *----------------------------------------------------------------------------------------------------------------------
- *
- *  @fn		bool sim_check_exit(sim_t *sim)
- *
- *  @brief	Check if simulation should exit
- *
- *----------------------------------------------------------------------------------------------------------------------
- */
-bool sim_check_exit(sim_t *sim)
-{
-   bool do_exit = false; 
-
-   if (sim->batt->ecm->soc <= 0.0f)
-      do_exit = true;
-
-   return do_exit;
-}
 
 
 /*!

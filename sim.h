@@ -56,10 +56,10 @@ sim_t;
 
 
 sim_t *sim_create(double t, double dt, double temp0);
-bool sim_check_exit(sim_t *sim);
 int sim_update(sim_t *sim);
 int sim_msleep(long ms);
-int sim_start(sim_t *sim);
+int sim_run_start(sim_t *sim);
+int sim_run_stop(sim_t *sim);
 bool sim_get_pause(sim_t *sim);
 void sim_set_pause(sim_t *sim, bool do_pause);
 void sim_destroy(sim_t *sim);

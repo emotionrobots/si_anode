@@ -355,25 +355,29 @@ int ecm_update(ecm_t *ecm, double I, double T, double t, double dt)
     ecm_lookup_ocv(ecm, ecm->soc, &ecm->v_oc);
   
 
-    /* update H */
-    if (ecm->I > ecm->I_quit)
-       ecm_lookup_h_dsg(ecm, ecm->soc, &ecm->H);
-    else if (ecm->I < -ecm->I_quit)
-       ecm_lookup_h_chg(ecm, ecm->soc, &ecm->H);
-
-    /* update v_batt */
-    ecm->v_batt = ecm->v_oc - ecm->H - ecm->v_rc - ecm->I*ecm->R0;
-
     /* Track charging state for hysteresis sign */
     ecm->prev_chg_state = ecm->chg_state;
 
-    /* update charging state */
-    if (ecm->I > ecm->I_quit) 
+
+    /* update H */
+    if (ecm->I > ecm->I_quit)
+    {
        ecm->chg_state = DSG; 		/* discharge */ 
-    else if (ecm->I < -ecm->I_quit) 
+       ecm_lookup_h_dsg(ecm, ecm->soc, &ecm->H);
+    }
+    else if (ecm->I < -ecm->I_quit)
+    {
        ecm->chg_state = CHG; 		/* charge */
+       ecm_lookup_h_chg(ecm, ecm->soc, &ecm->H);
+    }
     else
+    {
        ecm->chg_state = REST; 		/* rest */
+    }
+
+
+    /* update v_batt */
+    ecm->v_batt = ecm->v_oc - ecm->H - ecm->v_rc - ecm->I*ecm->R0;
 
     return rc;
 }

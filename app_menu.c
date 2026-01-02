@@ -192,10 +192,9 @@ int f_run(struct _menu *m, int argc, char **argv, void *p_usr)
    {
       LOCK(&sim->mtx);   
       sim->t_end = t_end;
-      sim->pause = false;
       UNLOCK(&sim->mtx);   
 
-      rc = sim_start(sim);
+      rc = sim_run_start(sim);
    }
    return rc;
 }

@@ -26,8 +26,12 @@ fgic_t *fgic_create(flash_params_t *p, double T0_C)
 {
    fgic_t *fgic = calloc(1, sizeof(fgic_t));
 
-   if (fgic != NULL)
+   if (fgic != NULL && p != NULL)
    {
+      fgic->params = p;
+      fgic->I_quit = DEFAULT_I_QUIT;
+      fgic->V_chg = DEFAULT_CV;
+      fgic->I_chg = DEFAULT_CC;
       fgic->period = FGIC_PERIOD_MS;
       fgic->ecm = (ecm_t *)malloc(sizeof(ecm_t));
       int rc = ecm_init(fgic->ecm, &g_flash_params, T0_C);

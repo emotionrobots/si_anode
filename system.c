@@ -86,7 +86,7 @@ system_t *system_create(fgic_t *fgic)
    if (sys==NULL || fgic==NULL) return NULL;
 
    sys->fgic = fgic;
-   sys->load_type = SYS_LOAD_PULSE;
+   sys->load_type = DEFAULT_SYS_LOAD;
    sys->V_chg = fgic->V_chg;
    sys->I_chg = fgic->I_chg;
 
@@ -95,7 +95,7 @@ system_t *system_create(fgic_t *fgic)
 
    sys->per = 100.0;
    sys->dutycycle = 0.5;
-   sys->I_on = 2.0;
+   sys->I_on = fabs(sys->I_chg);
    sys->I_off = 0;
    sys->t_start = 0;
 

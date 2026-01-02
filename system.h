@@ -19,12 +19,6 @@
 
 #include "fgic.h"
 
-
-#define SYS_LOAD_CC 		(0)
-#define SYS_LOAD_PULSE 		(1)
-#define SYS_LOAD_OSC 		(2)
-
-
 typedef struct {
    int load_type;
 
