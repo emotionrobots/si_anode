@@ -52,6 +52,10 @@ typedef struct
 
    /* Online parameter update bookkeeping */
    double I_quit;			       	/* Quit current */
+  
+   /* amplitude of noise */
+   double V_noise;
+   double I_noise;
 
    /* For R1/C1 LSQ on VRC decay to rest */
    double vrc_buf[VRC_BUF_SZ];             	/* VRC data from entering rest */

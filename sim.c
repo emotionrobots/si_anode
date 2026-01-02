@@ -163,6 +163,14 @@ int params_init(sim_t *sim)
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->system->t_start;
 
+   sim->params[i].name = "I_noise_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->I_noise;
+
+   sim->params[i].name = "V_noise_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->V_noise;
+
    sim->params_sz = i;
    return i;
 }

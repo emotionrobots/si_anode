@@ -45,6 +45,7 @@ int main()
    char *argv[MAX_TOKENS];
    const char delim[] = " \n";
 
+   srand(time(NULL));
 
    sim_t *sim = sim_create(0.0, DT, TEMP_0);
    menu_t *m_root = app_menu_init(sim);

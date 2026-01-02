@@ -388,9 +388,30 @@ int f_plot(struct _menu *m, int argc, char **argv, void *p_usr)
    for (int k=0; k<MAX_PARAMS; k++)
    {
       trace[k].name = "<no_name>";
-      trace[k].color.r = 255; 
-      trace[k].color.g = 255;
-      trace[k].color.b = 255;
+      if (k==0)
+      {
+         trace[k].color.r = 255; 
+         trace[k].color.g = 0;
+         trace[k].color.b = 0;
+      }
+      else if (k==1)
+      {
+         trace[k].color.r = 0; 
+         trace[k].color.g = 255;
+         trace[k].color.b = 0;
+      }
+      else if (k==2)
+      {
+         trace[k].color.r = 0; 
+         trace[k].color.g = 0;
+         trace[k].color.b = 255;
+      }
+      else
+      {
+         trace[k].color.r = 255; 
+         trace[k].color.g = 255;
+         trace[k].color.b = 255;
+      }
       trace[k].color.a = 255;
    }
 

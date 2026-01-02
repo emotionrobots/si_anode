@@ -47,6 +47,8 @@
 
 #define Q_DESIGN		(4.0)		/* 4 Ah */
 #define DEFAULT_SYS_LOAD	SYS_LOAD_CC	/* default system load type */
+#define DEFAULT_I_NOISE		(0.001)   	/* default current noise in A */
+#define DEFAULT_V_NOISE		(0.002)   	/* default current noise in V */
 
 
 #define CHG			(-1)
