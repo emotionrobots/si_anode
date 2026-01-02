@@ -47,6 +47,10 @@ int params_init(sim_t *sim)
 
    if (batt==NULL || fgic==NULL || system==NULL) return -1;
 
+   sim->params[i].name = "realtime";
+   sim->params[i].type = "%b";
+   sim->params[i++].value= &sim->realtime;
+
    sim->params[i].name = "t";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->t;
@@ -159,6 +163,30 @@ int params_init(sim_t *sim)
    return i;
 }
 
+/*!
+ *----------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn         bool sim_check_pause(sim_t *sim)
+ *
+ *  @brief      Check if simulation should pause
+ *
+ *  @note       Unprotected
+ *
+ *----------------------------------------------------------------------------------------------------------------------
+ */
+static
+bool sim_check_pause(sim_t *sim)
+{
+   bool do_pause = false;
+   batt_t *batt = sim->batt;
+
+   if (batt->ecm->chg_state==CHG && batt->ecm->soc >= 1.0f) do_pause = true;
+   if (batt->ecm->chg_state==DSG && batt->ecm->soc <= 0.0f) do_pause = true;
+   if (sim->t >= sim->t_end) do_pause = true;
+
+   return do_pause;
+}
+
 
 /*!
  *---------------------------------------------------------------------------------------------------------------------
@@ -174,30 +202,12 @@ void timer_callback(void *usr_arg)
 {
    sim_t *sim = (sim_t *)usr_arg;
    sim_update(sim);
-}
 
-/*!
- *----------------------------------------------------------------------------------------------------------------------
- *
- *  @fn         bool sim_check_pause(sim_t *sim)
- *
- *  @brief      Check if simulation should pause 
- *
- *  @note       Unprotected 
- *
- *----------------------------------------------------------------------------------------------------------------------
- */
-static
-bool sim_check_pause(sim_t *sim)
-{
-   bool do_pause = false;
-   batt_t *batt = sim->batt;
-
-   if (batt->ecm->chg_state==CHG && batt->ecm->soc >= 1.0f) do_pause = true;
-   if (batt->ecm->chg_state==DSG && batt->ecm->soc <= 0.0f) do_pause = true;
-   if (sim->t >= sim->t_end) do_pause = true;
-
-   return do_pause;
+   if (sim_check_pause(sim))
+   {
+      itimer_stop(sim);
+      printf("run paused at t=%lf\n", sim->t);
+   }
 }
 
 

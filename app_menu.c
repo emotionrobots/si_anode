@@ -44,7 +44,9 @@ int show_all_params(sim_t *sim)
       char *type = sim->params[i].type;
       void *value = sim->params[i].value;
 
-      if (0==strcmp(type, "%d"))
+      if (0==strcmp(type, "%b"))
+         printf("%s (%s):  %d\n", name, type, *(bool *)value);
+      else if (0==strcmp(type, "%d"))
          printf("%s (%s):  %d\n", name, type, *(int *)value);
       else if (0==strcmp(type, "%ld"))
          printf("%s (%s):  %ld\n", name, type, *(long *)value);
@@ -84,7 +86,9 @@ int show_params(sim_t *sim, char *name)
 
       if (0==strcmp(name, sim->params[i].name))
       {
-         if (0==strcmp(type, "%d"))
+         if (0==strcmp(type, "%b"))
+            printf("%s (%s):  %d\n", name, type, *(bool *)value);
+	 else if (0==strcmp(type, "%d"))
             printf("%s (%s):  %d\n", name, type, *(int *)value);
          else if (0==strcmp(type, "%ld"))
             printf("%s (%s):  %ld\n", name, type, *(long *)value);
@@ -123,7 +127,9 @@ int set_params(sim_t *sim, char *name, char *value)
    {
        if (0==strcmp(sim->params[i].name, name))
        {
-	  if (0==strcmp(sim->params[i].type, "%d"))
+	  if (0==strcmp(sim->params[i].type, "%b"))
+             *((bool *)sim->params[i].value) = atoi(value) ? true : false; 
+	  else if (0==strcmp(sim->params[i].type, "%d"))
              *((int *)sim->params[i].value) = atoi(value);
 	  else if (0==strcmp(sim->params[i].type, "%ld"))
              *((long *)sim->params[i].value) = strtol(value, &endptr, 0);
