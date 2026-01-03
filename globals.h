@@ -47,8 +47,14 @@
 
 #define Q_DESIGN		(4.0)		/* 4 Ah */
 #define DEFAULT_SYS_LOAD	SYS_LOAD_CC	/* default system load type */
+
 #define DEFAULT_I_NOISE		(0.001)   	/* default current noise in A */
-#define DEFAULT_V_NOISE		(0.002)   	/* default current noise in V */
+#define DEFAULT_V_NOISE		(0.002)   	/* default voltage noise in V */
+#define DEFAULT_T_NOISE		(0.01)   	/* default temp noise in deg C */
+
+#define DEFAULT_I_OFFSET	(0.0)   	/* default current offset A */
+#define DEFAULT_V_OFFSET	(0.0)   	/* default voltage offset in V */
+#define DEFAULT_T_OFFSET	(0.0)   	/* default temp offset in deg C */
 
 
 #define CHG			(-1)

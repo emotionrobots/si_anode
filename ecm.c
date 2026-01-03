@@ -175,8 +175,6 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    ecm->params = p;
 
    ecm->I_quit = p->I_quit;
-   ecm->V_noise = DEFAULT_V_NOISE; 
-   ecm->I_noise = DEFAULT_I_NOISE; 
 
    /* Arrhenius parameters (example values) */
    ecm->Ea_R0 =  10.0; 
@@ -339,7 +337,7 @@ int ecm_lookup_c1(const ecm_t *ecm, double soc, double *val)
 int ecm_update(ecm_t *ecm, double I, double T, double t, double dt)
 {
     int rc = 0;
-    ecm->I = I + ecm->I_noise * ((double)rand()/(double)RAND_MAX-0.5);
+    ecm->I = I;
     ecm->T_C = T;
 
     /* SOC update: I>0 discharge, I<0 charge */
@@ -380,8 +378,7 @@ int ecm_update(ecm_t *ecm, double I, double T, double t, double dt)
     }
 
     /* update v_batt */
-    ecm->v_batt = (ecm->v_oc + ecm->H) - ecm->v_rc - ecm->I*ecm->R0 
-	          + ecm->V_noise * ((double)rand()/(double)RAND_MAX - 0.5);
+    ecm->v_batt = (ecm->v_oc + ecm->H) - ecm->v_rc - ecm->I*ecm->R0;
 
     return rc;
 }
