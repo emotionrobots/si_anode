@@ -29,6 +29,7 @@ menu_t *menu_create(char *name, char *desc, char *help, char *args,
 int menu_destroy(menu_t *m);
 int menu_add_child(menu_t *parent, menu_t *child); 
 int menu_add_peer(menu_t *parent, menu_t *peer); 
+int menu_process(menu_t *m, int argc, char **argv, void *p_usr);
 
 
 #endif // __MENU_H__

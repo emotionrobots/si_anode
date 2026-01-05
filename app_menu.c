@@ -16,6 +16,7 @@
 #include <errno.h>
 #include <stdbool.h>
 
+#include "util.h"
 #include "menu.h"
 #include "app_menu.h"
 #include "scope_plot.h"
@@ -35,8 +36,6 @@ static
 int show_all_params(sim_t *sim)
 {
    int rc = -1;
-   char *endptr;
-
 
    for (int i=0; i< sim->params_sz; i++)
    {
@@ -77,7 +76,6 @@ static
 int show_params(sim_t *sim, char *name)
 {
    int rc = -1;
-   char *endptr;
 
    for (int i=0; i< sim->params_sz; i++)
    {
@@ -162,6 +160,7 @@ int f_ls(struct _menu *m, int argc, char **argv, void *p_usr)
 {
    (void)argc;
    (void)argv;
+   (void)p_usr;
 
    while (m != NULL)
    {
@@ -274,7 +273,6 @@ static
 int f_log(struct _menu *m, int argc, char **argv, void *p_usr)
 {
    int rc = -1;
-   char *endptr;
 
    if (m==NULL || p_usr==NULL || argv==NULL) return -1;
    sim_t *sim = (sim_t *)p_usr;
@@ -362,8 +360,6 @@ static
 int f_plot(struct _menu *m, int argc, char **argv, void *p_usr)
 {
    int rc = 0;
-   char *endptr;
-   int idx[MAX_PARAMS];
    char linebuf[MAX_LINE_SZ];
    char titlebuf[MAX_LINE_SZ];
    int nvars = 0;
@@ -600,6 +596,11 @@ _err_ret:
 static 
 int f_cd(struct _menu *m, int argc, char **argv, void *p_usr)
 {
+   (void)m;
+   (void)argc;
+   (void)argv;
+   (void)p_usr;
+
    printf("f_cd called\n");
    return 0;
 }
@@ -611,6 +612,11 @@ int f_cd(struct _menu *m, int argc, char **argv, void *p_usr)
 static 
 int f_here(struct _menu *m, int argc, char **argv, void *p_usr)
 {
+   (void)m;
+   (void)argc;
+   (void)argv;
+   (void)p_usr;
+
    printf("f_here called\n");
    return 0;
 }
@@ -622,6 +628,11 @@ int f_here(struct _menu *m, int argc, char **argv, void *p_usr)
 static 
 int f_there(struct _menu *m, int argc, char **argv, void *p_usr)
 {
+   (void)m;
+   (void)argc;
+   (void)argv;
+   (void)p_usr;
+
    printf("f_there called\n");
    return 0;
 }

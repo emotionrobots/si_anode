@@ -69,7 +69,7 @@ int params_init(sim_t *sim)
 
    sim->params[i].name = "V_batt";
    sim->params[i].type = "%lf";
-   sim->params[i++].value= &sim->batt->ecm->v_batt;
+   sim->params[i++].value= &sim->batt->ecm->V_batt;
 
    sim->params[i].name = "I_batt";
    sim->params[i].type = "%lf";
@@ -83,17 +83,29 @@ int params_init(sim_t *sim)
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->batt->ecm->H;
 
+   sim->params[i].name = "R0_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->R0;
+
+   sim->params[i].name = "R1_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->R1;
+
+   sim->params[i].name = "C1_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->C1;
+
    sim->params[i].name = "Qmax_batt";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->batt->ecm->Q_Ah;
 
-   sim->params[i].name = "C_th_batt";
+   sim->params[i].name = "Cp_batt";
    sim->params[i].type = "%lf";
-   sim->params[i++].value= &sim->batt->ecm->C_th;
+   sim->params[i++].value= &sim->batt->ecm->Cp;
 
-   sim->params[i].name = "R_th_batt";
+   sim->params[i].name = "ht_batt";
    sim->params[i].type = "%lf";
-   sim->params[i++].value= &sim->batt->ecm->R_th;
+   sim->params[i++].value= &sim->batt->ecm->ht;
 
    sim->params[i].name = "Ea_R0_batt";
    sim->params[i].type = "%lf";
@@ -121,43 +133,7 @@ int params_init(sim_t *sim)
 
    sim->params[i].name = "V_oc_batt";
    sim->params[i].type = "%lf";
-   sim->params[i++].value= &sim->batt->ecm->v_oc;
-
-   sim->params[i].name = "H_batt";
-   sim->params[i].type = "%lf";
-   sim->params[i++].value= &sim->batt->ecm->H;
-
-   sim->params[i].name = "Qmax_batt";
-   sim->params[i].type = "%lf";
-   sim->params[i++].value= &sim->batt->ecm->Q_Ah;
-
-   sim->params[i].name = "C_th_batt";
-   sim->params[i].type = "%lf";
-   sim->params[i++].value= &sim->batt->ecm->C_th;
-
-   sim->params[i].name = "R_th_batt";
-   sim->params[i].type = "%lf";
-   sim->params[i++].value= &sim->batt->ecm->R_th;
-
-   sim->params[i].name = "Ea_R0_batt";
-   sim->params[i].type = "%lf";
-   sim->params[i++].value= &sim->batt->ecm->Ea_R0;
-
-   sim->params[i].name = "Ea_R1_batt";
-   sim->params[i].type = "%lf";
-   sim->params[i++].value= &sim->batt->ecm->Ea_R1;
-
-   sim->params[i].name = "Ea_C1_batt";
-   sim->params[i].type = "%lf";
-   sim->params[i++].value= &sim->batt->ecm->Ea_C1;
-
-   sim->params[i].name = "chg_state_batt";
-   sim->params[i].type = "%d";
-   sim->params[i++].value= &sim->batt->ecm->chg_state;
-
-   sim->params[i].name = "prev_chg_state_batt";
-   sim->params[i].type = "%d";
-   sim->params[i++].value= &sim->batt->ecm->prev_chg_state;
+   sim->params[i++].value= &sim->batt->ecm->V_oc;
 
    sim->params[i].name = "I_sys";
    sim->params[i].type = "%lf";
@@ -199,9 +175,21 @@ int params_init(sim_t *sim)
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->system->t_start;
 
+   sim->params[i].name = "V_meas_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->V_meas;
+
+   sim->params[i].name = "I_meas_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->I_meas;
+
+   sim->params[i].name = "T_meas_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->T_meas;
+
    sim->params[i].name = "V_fgic";
    sim->params[i].type = "%lf";
-   sim->params[i++].value= &sim->fgic->ecm->v_batt;
+   sim->params[i++].value= &sim->fgic->ecm->V_batt;
 
    sim->params[i].name = "I_fgic";
    sim->params[i].type = "%lf";
@@ -210,6 +198,54 @@ int params_init(sim_t *sim)
    sim->params[i].name = "T_fgic";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->fgic->ecm->T_C;
+
+   sim->params[i].name = "H_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->H;
+
+   sim->params[i].name = "R0_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->R0;
+
+   sim->params[i].name = "R1_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->R1;
+
+   sim->params[i].name = "C1_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->C1;
+
+   sim->params[i].name = "Qmax_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->Q_Ah;
+
+   sim->params[i].name = "Cp_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->Cp;
+
+   sim->params[i].name = "ht_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->ht;
+
+   sim->params[i].name = "Ea_R0_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->Ea_R0;
+
+   sim->params[i].name = "Ea_R1_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->Ea_R1;
+
+   sim->params[i].name = "Ea_C1_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->Ea_C1;
+
+   sim->params[i].name = "chg_state_fgic";
+   sim->params[i].type = "%d";
+   sim->params[i++].value= &sim->fgic->ecm->chg_state;
+
+   sim->params[i].name = "prev_chg_state_fgic";
+   sim->params[i].type = "%d";
+   sim->params[i++].value= &sim->fgic->ecm->prev_chg_state;
 
    sim->params[i].name = "I_noise_fgic";
    sim->params[i].type = "%lf";
@@ -281,7 +317,7 @@ void timer_callback(void *usr_arg)
 
    if (sim_check_pause(sim))
    {
-      itimer_stop(sim);
+      itimer_stop(sim->tm);
       printf("run paused at t=%lf\n", sim->t);
    }
 }
@@ -372,8 +408,8 @@ void *sim_loop(void *arg)
 
       /* update sim */
       LOCK(&sim->mtx); 
-      sim_update(sim);  
       done = sim->done;
+      if (!done) sim_update(sim);  
       UNLOCK(&sim->mtx); 
 
       if (done) break;
@@ -522,7 +558,7 @@ void sim_destroy(sim_t *sim)
    sim->pause = false;
    sim->done = true;
    UNLOCK(&sim->mtx);
-   pthread_join(*sim->thread, NULL);
+   if (sim->thread != NULL) pthread_join(*sim->thread, NULL);
    if (sim->thread != NULL) free(sim->thread);
 
    if (sim->system != NULL) system_destroy(sim->system);
@@ -592,19 +628,20 @@ int sim_update(sim_t *sim)
    if (sim == NULL) return -1;
 
    sim_update_log(sim);
-
    rc = system_update(sim->system, sim->t, sim->dt);
    if (rc != 0) goto _err_ret;
 
    rc = batt_update(sim->batt, sim->system->I, sim->T_amb_C, sim->t, sim->dt);
    if (rc != 0) goto _err_ret;
 
-   rc = fgic_update(sim->fgic, sim->t, sim->dt);
+   rc = fgic_update(sim->fgic, sim->T_amb_C, sim->t, sim->dt);
    if (rc != 0) goto _err_ret;
 
-_err_ret:
-
    sim->t += sim->dt;
+   return 0;
+
+_err_ret:
+   printf("error: sim_update.\n");
    return rc; 
 }
 

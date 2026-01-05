@@ -32,7 +32,6 @@ typedef struct {
 
    double design_capacity;                      /* Battery design capacity */
    double v_end;                                /* End-of-discharge voltage */
-   double v_full;                               /* full-charge voltage */
    double T_ref_C;                              /* Reference temperature in degC (tbl) */
 
    /* 

@@ -41,13 +41,13 @@ struct ukf_s;
  *  u: input pointer (may be NULL)
  *  dt: time step
  */
-typedef void (*ukf_fx_t)(ukf_float *x, const ukf_float *u, ukf_float dt);
+typedef void (*ukf_fx_t)(ukf_float *x, const ukf_float *u, ukf_float dt, void *p_usr);
 
 /* Measurement model callback:
  *  x: state vector of size n_x
  *  z: output measurement vector of size n_z
  */
-typedef void (*ukf_hx_t)(const ukf_float *x, ukf_float *z);
+typedef void (*ukf_hx_t)(const ukf_float *x, ukf_float *z, void *p_usr);
 
 /* Main UKF struct */
 typedef struct ukf_s {
@@ -106,12 +106,12 @@ void ukf_set_models(ukf_t *ukf, ukf_fx_t fx, ukf_hx_t hx);
  *  u: input vector pointer (may be NULL if fx ignores it)
  *  dt: timestep
  */
-ukf_status_t ukf_predict(ukf_t *ukf, const ukf_float *u, ukf_float dt);
+ukf_status_t ukf_predict(ukf_t *ukf, const ukf_float *u, ukf_float dt, void *p_usr);
 
 /* Update step: incorporates measurement z using hx.
  *  z: measurement vector of size n_z
  */
-ukf_status_t ukf_update(ukf_t *ukf, const ukf_float *z);
+ukf_status_t ukf_update(ukf_t *ukf, const ukf_float *z, void *p_usr);
 
 #ifdef __cplusplus
 }

@@ -499,8 +499,8 @@ ukf_status_t ukf_sigma_points(const ukf_t *ukf, ukf_float *X)
     }
 
     /* Compute sqrt(c * P) via Cholesky */
-    ukf_float A[UKF_MAX_N * UKF_MAX_N];
-    ukf_float L[UKF_MAX_N * UKF_MAX_N];
+    ukf_float A[UKF_MAX_N * UKF_MAX_N] = {0};
+    ukf_float L[UKF_MAX_N * UKF_MAX_N] = {0};
 
     /* A = c * P */
     for (int i = 0; i < n*n; ++i) 
@@ -540,7 +540,7 @@ ukf_status_t ukf_sigma_points(const ukf_t *ukf, ukf_float *X)
 /*!
  *----------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		ukf_status_t ukf_predict(ukf_t *ukf, const ukf_float *u, ukf_float dt)
+ *  @fn		ukf_status_t ukf_predict(ukf_t *ukf, const ukf_float *u, ukf_float dt, void *p_usr)
  *
  *  @brief	Predict next state given input 'u' and 'dt' 
  *
@@ -553,7 +553,7 @@ ukf_status_t ukf_sigma_points(const ukf_t *ukf, ukf_float *X)
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
-ukf_status_t ukf_predict(ukf_t *ukf, const ukf_float *u, ukf_float dt)
+ukf_status_t ukf_predict(ukf_t *ukf, const ukf_float *u, ukf_float dt, void *p_usr)
 {
     if (!ukf || !ukf->fx) return UKF_ERR_DIM;
     int n = ukf->n_x;
@@ -574,7 +574,7 @@ ukf_status_t ukf_predict(ukf_t *ukf, const ukf_float *u, ukf_float dt)
 	{
             xk[i] = X[IDX(i,k,ns)];
         }
-        ukf->fx(xk, u, dt);
+        ukf->fx(xk, u, dt, p_usr);
         for (int i = 0; i < n; ++i) 
 	{
             ukf->sigma_x[IDX(i,k,ns)] = xk[i];
@@ -628,7 +628,7 @@ ukf_status_t ukf_predict(ukf_t *ukf, const ukf_float *u, ukf_float dt)
 /*!
  *----------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		ukf_status_t ukf_update(ukf_t *ukf, const ukf_float *z_meas)
+ *  @fn		ukf_status_t ukf_update(ukf_t *ukf, const ukf_float *z_meas, void *p_usr)
  *
  *  @brief	Update state vars based on measurement
  *
@@ -645,7 +645,7 @@ ukf_status_t ukf_predict(ukf_t *ukf, const ukf_float *u, ukf_float dt)
  *
  *----------------------------------------------------------------------------------------------------------------------
  */
-ukf_status_t ukf_update(ukf_t *ukf, const ukf_float *z_meas)
+ukf_status_t ukf_update(ukf_t *ukf, const ukf_float *z_meas, void *p_usr)
 {
     if (!ukf || !ukf->hx || !z_meas) return UKF_ERR_DIM;
 
@@ -663,7 +663,7 @@ ukf_status_t ukf_update(ukf_t *ukf, const ukf_float *z_meas)
             xk[i] = ukf->sigma_x[IDX(i,k,ns)];
         }
         ukf_float zk[UKF_MAX_M];
-        ukf->hx(xk, zk);
+        ukf->hx(xk, zk, p_usr);
         for (int j = 0; j < m; ++j) 
 	{
             Z[IDX(j,k,ns)] = zk[j];

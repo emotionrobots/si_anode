@@ -24,7 +24,6 @@ flash_params_t g_flash_params = {
 
    .design_capacity = 4.4,                     
    .v_end = 2.5,                              
-   .v_full = 4.2,                           
    .T_ref_C = TEMP_0,
 
    .I_quit = DEFAULT_I_QUIT,

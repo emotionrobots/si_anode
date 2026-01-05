@@ -37,9 +37,7 @@
  */
 int main()
 {
-   int rc = 0;
    bool done = false;
-   bool realtime = false;
    char linebuf[MAX_LINE_SZ];
    int argc = 0;
    char *argv[MAX_TOKENS];
@@ -80,6 +78,8 @@ int main()
 _quit:
    if (m_root != NULL) free(m_root);
    if (sim != NULL) sim_destroy(sim);
+
+   return 0;
 }
 
 #undef __APP_C__

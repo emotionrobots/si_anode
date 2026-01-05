@@ -13,6 +13,7 @@
 #include <stddef.h>
 #include "globals.h"
 #include "flash_params.h"
+#include "util.h"
 
 
 typedef struct 
@@ -24,12 +25,13 @@ typedef struct
    double R0, R1, C1;
 
    /* Model states */
-   double v_batt;				/* V_batt */
-   double v_rc;					/* VRC */ 
-   double v_oc;					/* OCV */
+   double V_batt;				/* V_batt */
+   double V_rc;					/* VRC */ 
+   double V_oc;					/* OCV */
    double soc;     				/* current SOC (0..1) */
    double H;       				/* current hysteresis */
    double T_C;       				/* core cell temperature [°C] */
+   double T_amb_C;				/* ambient temp C */
    double I;					/* ECM current */
    double prev_I;				/* previous current */
    double prev_V;				/* previous voltage */
@@ -43,8 +45,8 @@ typedef struct
    double Q_Ah; 	
 
    /* Thermal */
-   double C_th;    				/* thermal capacitance [J/°C] */
-   double R_th;    				/* thermal resistance [°C/W] */
+   double Cp;    				/* thermal capacitance [J/°C] */
+   double ht;    				/* thermal transfer [W/°C] */
 
    /* charging state 0 rest, -1 charge, +1 discharge */
    int chg_state;
@@ -54,15 +56,14 @@ typedef struct
    double I_quit;			       	/* Quit current */
   
    /* For R1/C1 LSQ on VRC decay to rest */
-   double vrc_buf[VRC_BUF_SZ];             	/* VRC data from entering rest */
-   double vrc_buf_len;                          /* buffer len */
+   double Vrc_buf[VRC_BUF_SZ];             	/* VRC data from entering rest */
+   double Vrc_buf_len;                          /* buffer len */
 } 
 ecm_t;
 
 
 int ecm_lookup_ocv(const ecm_t *ecm, double soc, double *val);
-int ecm_lookup_h_chg(const ecm_t *ecm, double soc, double *val);
-int ecm_lookup_h_dsg(const ecm_t *ecm, double soc, double *val);
+int ecm_lookup_h(const ecm_t *ecm, double soc, double *val);
 int ecm_lookup_r0(const ecm_t *ecm, double soc, double *val);
 int ecm_lookup_r1(const ecm_t *ecm, double soc, double *val);
 int ecm_lookup_c1(const ecm_t *ecm, double soc, double *val);

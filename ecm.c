@@ -17,24 +17,6 @@
 /*! 
  *--------------------------------------------------------------------------------------------------------------------- 
  *
- * @fn		double clamp(double x, double lo, double hi)
- *
- * @brief	Clamping function
- *
- *--------------------------------------------------------------------------------------------------------------------- 
- */
-static 
-double clamp(double x, double lo, double hi)
-{
-    if (x < lo) return lo;
-    if (x > hi) return hi;
-    return x;
-}
-
-
-/*! 
- *--------------------------------------------------------------------------------------------------------------------- 
- *
  * @fn 		int tbl_interp(const double *grid, const double *tbl, int n, double soc, double *val)
  *
  * @brief	Linear interpolation on SOC grid (assumed monotonic). 
@@ -86,72 +68,19 @@ int tbl_interp(const double *grid, const double *tbl, int n, double soc, double 
 static 
 int nearest_soc_idx(const double *grid, int n, double soc)
 {
-    soc = clamp(soc, grid[0], grid[n - 1]);
+    soc = util_clamp(soc, grid[0], grid[n - 1]);
     int best = 0;
     double best_err = fabs(soc - grid[0]);
     for (int i = 1; i < n; ++i) 
     {
         double e = fabs(soc - grid[i]);
-        if (e < best_err) {
+        if (e < best_err) 
+	{
             best_err = e;
             best = i;
         }
     }
     return best;
-}
-
-
-/*! 
- *--------------------------------------------------------------------------------------------------------------------- 
- *
- * @fn		double arrhenius_scale(double k_ref, double Ea, double T_C, double T_ref_C)
- *
- * @brief	Arrhenius scaling k(T) = k_ref * exp(-Ea * (1/T - 1/T_ref)).
- *              T, T_ref in °K 
- *
- * @note	if Ea > 0, if T > Tr, R < R_ref  
- *		if Ea < 0, if T > Tr, C > C_ref
- *
- *--------------------------------------------------------------------------------------------------------------------- 
- */
-static 
-double arrhenius_scale(double k_ref, double Ea, double T_C, double Tref_C)
-{
-    double T  = T_C     + 273.15;
-    double Tr = Tref_C  + 273.15;
-
-    if (T < 1.0)  T  = 1.0;
-    if (Tr < 1.0) Tr = 1.0;
-
-    double factor = exp( -Ea * (1.0 / T - 1.0 / Tr) );
-    return k_ref * factor;
-}
-
-
-/*!
- *---------------------------------------------------------------------------------------------------------------------
- *
- * @fn          double arrhenius_inv_scale(double k_ref, double Ea, double T_C, double Tref_C)
- *
- * @brief       Arrhenius inverse scaling k_ref(T) = k_val * exp(Ea/R * (1/T - 1/T_ref)).
- *              T, T_ref in °C; internal conversion to Kelvin.
- *
- * @note        if Ea > 0, for T > Tr, R < R_ref
- *              if Ea < 0, for T > Tr, C > C_ref
- *
- *---------------------------------------------------------------------------------------------------------------------
- */
-static
-double arrhenius_inv_scale(double k_val, double Ea, double T_C, double Tref_C)
-{
-    double T  = T_C     + 273.15;
-    double Tr = Tref_C  + 273.15;
-
-    if (T < 1.0)  T  = 1.0;
-    if (Tr < 1.0) Tr = 1.0;
-
-    double factor = exp( Ea * (1.0 / T - 1.0 / Tr) );
-    return k_val * factor;
 }
 
 
@@ -177,30 +106,36 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    ecm->I_quit = p->I_quit;
 
    /* Arrhenius parameters (example values) */
-   ecm->Ea_R0 =  10.0; 
-   ecm->Ea_R1 =  10.0;
-   ecm->Ea_C1 = -10.0;
+   ecm->Ea_R0 =  0.01; 
+   ecm->Ea_R1 =  0.01;
+   ecm->Ea_C1 = -0.01;
 
    /* Capacity and thermal */
-   ecm->Q_Ah = Q_DESIGN; /* Ah */
-   ecm->C_th = 200.0;    /* Thermal capacity J/°C */
-   ecm->R_th = 3.0;      /* Thermal resistance °C/W */
+   ecm->Q_Ah = Q_DESIGN; 	/* Ah */
+   ecm->Cp = HEAT_CAPACITY;    	/* Thermal capacity J/°C */
+   ecm->ht = HEAT_TRANS_COEF;  	/* Thermal resistance °C/W */
 
    /* Dynamic state defaults */
    ecm->soc = ecm->params->soc_tbl[SOC_GRIDS-1];
-   ecm->v_oc = ecm->params->ocv_tbl[SOC_GRIDS-1];
-   ecm->prev_V = ecm->v_oc;
-   ecm->v_batt = ecm->prev_V;
+   ecm->V_oc = ecm->params->ocv_tbl[SOC_GRIDS-1];
+   ecm->prev_V = ecm->V_oc;
+   ecm->V_batt = ecm->prev_V;
    ecm->prev_I = 0.0;
    ecm->I = ecm->prev_I;
    ecm->T_C = T0_C;
-   ecm->v_rc = 0.0;
+   ecm->V_rc = 0.0;
    ecm->H = ecm->params->h_dsg_tbl[SOC_GRIDS-1];;
+
+   /* R0, R1, C1 */
+   ecm_lookup_r0(ecm, ecm->soc, &ecm->R0);
+   ecm_lookup_r1(ecm, ecm->soc, &ecm->R1);
+   ecm_lookup_c1(ecm, ecm->soc, &ecm->C1);
+
 
    ecm->chg_state = REST;
 
-   memset(ecm->vrc_buf, 0, VRC_BUF_SZ*sizeof(double));
-   ecm->vrc_buf_len = 0;
+   memset(ecm->Vrc_buf, 0, VRC_BUF_SZ*sizeof(double));
+   ecm->Vrc_buf_len = 0;
 
    return 0;
 }
@@ -218,6 +153,7 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
  */
 void ecm_cleanup(ecm_t *ecm)
 {
+   (void)ecm;
 }
 
 
@@ -240,32 +176,27 @@ int ecm_lookup_ocv(const ecm_t *ecm, double soc, double *val)
 /*! 
  *--------------------------------------------------------------------------------------------------------------------- 
  *
- *  @fn		int ecm_lookup_h_chg(const ecm_t *ecm, double soc, double *val)
+ *  @fn		int ecm_lookup_h(const ecm_t *ecm, double soc, double *val)
  *
- *  @brief	Read  H_chg table given SOC
- *
- *--------------------------------------------------------------------------------------------------------------------- 
- */
-int ecm_lookup_h_chg(const ecm_t *ecm, double soc, double *val)
-{
-    flash_params_t *params = ecm->params;
-    return tbl_interp(params->soc_tbl, params->h_chg_tbl, SOC_GRIDS, soc, val);
-}
-
-
-/*! 
- *--------------------------------------------------------------------------------------------------------------------- 
- *
- *  @fn		int ecm_lookup_h_dsg(const ecm_t *ecm, double soc, double *val)
- *  
- *  @brief	Return H_dsg given SOC
+ *  @brief	Read  H lookup given SOC
  *
  *--------------------------------------------------------------------------------------------------------------------- 
  */
-int ecm_lookup_h_dsg(const ecm_t *ecm, double soc, double *val)
+int ecm_lookup_h(const ecm_t *ecm, double soc, double *val)
 {
+    int rc = 0;
+
+    *val = ecm->H;
     flash_params_t *params = ecm->params;
-    return tbl_interp(params->soc_tbl, params->h_dsg_tbl, SOC_GRIDS, soc, val);
+
+    if (ecm->chg_state==CHG)
+       rc = tbl_interp(params->soc_tbl, params->h_chg_tbl, SOC_GRIDS, soc, val);
+    else if (ecm->chg_state==DSG) 
+       rc = tbl_interp(params->soc_tbl, params->h_dsg_tbl, SOC_GRIDS, soc, val);
+    else
+       *val = ecm->H;
+
+    return rc;
 }
 
 
@@ -320,7 +251,7 @@ int ecm_lookup_c1(const ecm_t *ecm, double soc, double *val)
 /*! 
  *--------------------------------------------------------------------------------------------------------------------- 
  *
- * @fn		int ecm_update(ecm_t *ecm, double I, double T, double t, double dt)
+ * @fn		int ecm_update(ecm_t *ecm, double I, double T_amb_C, double t, double dt)
  * 
  * @brief	Compute the ECM dynamics one time step
  *
@@ -329,56 +260,67 @@ int ecm_lookup_c1(const ecm_t *ecm, double soc, double *val)
  * @param	T     : cell temperature [°C]
  * @param	dt    : time step [s]
  *
- * @note	States updated: soc, v_rc, T, chg_state
+ * @note	States updated: soc, V_rc, T, chg_state
  * 		Parameters R0/R1/C1 are read via lookup + Arrhenius scaling.
  *
  *--------------------------------------------------------------------------------------------------------------------- 
  */
-int ecm_update(ecm_t *ecm, double I, double T, double t, double dt)
+int ecm_update(ecm_t *ecm, double I, double T_amb_C, double t, double dt)
 {
+    (void)t;
+
+    double R0=0.0, C1=0.0, R1=0.0;
     int rc = 0;
     ecm->I = I;
-    ecm->T_C = T;
+    ecm->T_amb_C = T_amb_C;
+   
+    /* soc update */
+    double Qmax = ecm->Q_Ah * 3600;
+    ecm->soc -= (ecm->I*dt)/Qmax;
 
-    /* SOC update: I>0 discharge, I<0 charge */
-    double dSOC = -(ecm->I * dt) / (ecm->Q_Ah * 3600.0);
-    ecm->soc = clamp(ecm->soc + dSOC, 0.0, 1.0);
+    /* temp update */
+    double powerloss = ecm->I * ecm->I * ecm->R0;
+    ecm->T_C += dt * (powerloss - ecm->ht * (ecm->T_C - ecm->T_amb_C)) / ecm->Cp;
 
     /* model param update */
-    ecm_lookup_r1(ecm, ecm->soc, &ecm->R1);
-    ecm->R1 = arrhenius_scale(ecm->R1, ecm->Ea_R1, ecm->T_C, ecm->params->T_ref_C); 
-    ecm_lookup_c1(ecm, ecm->soc, &ecm->C1);
-    ecm->C1 = arrhenius_scale(ecm->C1, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);  
-    ecm_lookup_r0(ecm, ecm->soc, &ecm->R0);
-    ecm->R0 = arrhenius_scale(ecm->R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
+    ecm_lookup_r0(ecm, util_clamp(ecm->soc, 0.0, 1.0), &R0);
+    ecm->R0 = util_temp_adj(R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
 
-    /* update vrc and v_oc */
-    ecm->v_rc += dt * ( -ecm->v_rc / (ecm->R1 * ecm->C1) + ecm->I / ecm->C1 );
-    ecm_lookup_ocv(ecm, ecm->soc, &ecm->v_oc);
-  
+    ecm_lookup_r1(ecm, util_clamp(ecm->soc, 0.0, 1.0), &R1);
+    ecm->R1 = util_temp_adj(R1, ecm->Ea_R1, ecm->T_C, ecm->params->T_ref_C); 
+
+    ecm_lookup_c1(ecm, util_clamp(ecm->soc, 0.0, 1.0), &C1);
+    ecm->C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);  
+
+
+    /* update V_oc */
+    ecm_lookup_ocv(ecm, ecm->soc, &ecm->V_oc);
+    
+
+    /* update V_rc */
+    ecm->V_rc += dt * ( -ecm->V_rc / (ecm->R1 * ecm->C1) + ecm->I / ecm->C1 );
+
 
     /* Track charging state for hysteresis sign */
     ecm->prev_chg_state = ecm->chg_state;
 
 
-    /* update H */
+    /* update chg state -- must be before update H */
     if (ecm->I > ecm->I_quit)
-    {
-       ecm->chg_state = DSG; 		/* discharge */ 
-       ecm_lookup_h_dsg(ecm, ecm->soc, &ecm->H);
-    }
+       ecm->chg_state = DSG; 		
     else if (ecm->I < -ecm->I_quit)
-    {
-       ecm->chg_state = CHG; 		/* charge */
-       ecm_lookup_h_chg(ecm, ecm->soc, &ecm->H);
-    }
+       ecm->chg_state = CHG; 		
     else
-    {
-       ecm->chg_state = REST; 		/* rest, H no-change */
-    }
+       ecm->chg_state = REST; 
 
-    /* update v_batt */
-    ecm->v_batt = (ecm->v_oc + ecm->H) - ecm->v_rc - ecm->I*ecm->R0;
+
+    /* update H */
+    ecm_lookup_h(ecm, ecm->soc, &ecm->H);
+
+
+    /* update V_batt */
+    ecm->V_batt = (ecm->V_oc + ecm->H) - ecm->V_rc - ecm->I * ecm->R0;
+
 
     return rc;
 }

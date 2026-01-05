@@ -7,6 +7,7 @@
  *
  *=====================================================================================================================
  */
+#include <math.h>
 #include "globals.h"
 #include "util.h"
 
@@ -52,4 +53,80 @@ bool util_is_numeric(char *str)
 }
 
 
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn		double util_clamp(double x, double lo, double hi)
+ *
+ *  @brief	Clamp x between lo and hi
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+double util_clamp(double x, double lo, double hi)
+{
+   if (x > hi) return hi;
+   if (x < lo) return lo;
+   return x;
+}
+
+/*! 
+ *--------------------------------------------------------------------------------------------------------------------- 
+ *
+ * @fn		double util_temp_adj(double k_ref, double Ea, double T_C, double Tref_C)
+ *
+ * @brief       Arrhenius scaling k(T) = k_ref * exp(-Ea/R * (1/T - 1/T_ref)).
+ *              T, T_ref in °C; internal conversion to Kelvin.
+ *
+ * @note        if Ea > 0, for T > Tr, R < R_ref  
+ *              if Ea < 0, for T > Tr, C > C_ref
+ *
+ *--------------------------------------------------------------------------------------------------------------------- 
+ */
+double util_temp_adj(double k_ref, double Ea, double T_C, double Tref_C)
+{
+    /* If Ea ~ 0, skip scaling. */
+    // if (fabs(Ea) < 1.0) return k_ref;
+
+    // const double Rg = 8.314462618; /* J/mol/K */
+    double T  = T_C     + 273.15;
+    double Tr = Tref_C  + 273.15;
+
+    if (T < 1.0)  T  = 1.0;
+    if (Tr < 1.0) Tr = 1.0;
+
+    double factor = exp( -Ea * (1.0 / T - 1.0 / Tr) );
+    // double factor = exp( -Ea / Rg * (1.0 / T - 1.0 / Tr) );
+    return k_ref * factor;
+}
+
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ * @fn		double util_temp_unadj(double k_val, double Ea, double T_C, double Tref_C)
+ *
+ * @brief       Arrhenius inverse scaling k_ref(T) = k_val * exp(Ea/R * (1/T - 1/T_ref)).
+ *              T, T_ref in °C; internal conversion to Kelvin.
+ *
+ * @note        if Ea > 0, for T > Tr, R < R_ref
+ *              if Ea < 0, for T > Tr, C > C_ref
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+double util_temp_unadj(double k_val, double Ea, double T_C, double Tref_C)
+{
+    /* If Ea ~ 0, skip scaling. */
+    // if (fabs(Ea) < 1.0) return k_val;
+
+    // const double Rg = 8.314462618; /* J/mol/K */
+    double T  = T_C     + 273.15;
+    double Tr = Tref_C  + 273.15;
+
+    if (T < 1.0)  T  = 1.0;
+    if (Tr < 1.0) Tr = 1.0;
+
+    double factor = exp( Ea * (1.0 / T - 1.0 / Tr) );
+    // double factor = exp( Ea / Rg * (1.0 / T - 1.0 / Tr) );
+    return k_val * factor;
+}
 

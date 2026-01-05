@@ -48,6 +48,9 @@
 #define Q_DESIGN		(4.0)		/* 4 Ah */
 #define DEFAULT_SYS_LOAD	SYS_LOAD_CC	/* default system load type */
 
+#define HEAT_CAPACITY		(200.0)      	/* heat capacity J/°C */
+#define HEAT_TRANS_COEF		(0.01)       	/* heat transfer coef W/°C */
+
 #define DEFAULT_I_NOISE		(0.001)   	/* default current noise in A */
 #define DEFAULT_V_NOISE		(0.002)   	/* default voltage noise in V */
 #define DEFAULT_T_NOISE		(0.01)   	/* default temp noise in deg C */
