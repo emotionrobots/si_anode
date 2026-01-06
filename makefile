@@ -4,7 +4,8 @@ CFLAGS  += $(shell sdl2-config --cflags) -Wall -Wextra -std=c11 -O2 -pthread
 LDFLAGS := $(shell sdl2-config --libs) -lSDL2_ttf -pthread -lm -lc
 
 TARGET  := app
-OBJS    := system.o fgic.o batt.o ecm.o itimer.o app.o flash_params.o sim.o util.o menu.o app_menu.o scope_plot.o ukf.o
+OBJS    := system.o fgic.o batt.o ecm.o itimer.o app.o flash_params.o sim.o util.o \
+	   menu.o app_menu.o scope_plot.o ukf.o soc_ocv_lookup.o
 INCS 	:= *.h 
 
 
@@ -13,6 +14,9 @@ INCS 	:= *.h
 all: $(TARGET)
 
 util.o: util.c $(INCS)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+soc_ocv_lookup: soc_ocv_lookup.c $(INC)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 ukf.o: ukf.c $(INCS)

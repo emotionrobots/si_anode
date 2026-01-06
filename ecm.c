@@ -277,19 +277,16 @@ int ecm_update(ecm_t *ecm, double I, double T_amb_C, double t, double dt)
     /* soc update */
     double Qmax = ecm->Q_Ah * 3600;
     ecm->soc -= (ecm->I*dt)/Qmax;
-
-    /* temp update */
-    double powerloss = ecm->I * ecm->I * ecm->R0;
-    ecm->T_C += dt * (powerloss - ecm->ht * (ecm->T_C - ecm->T_amb_C)) / ecm->Cp;
+    ecm->soc = util_clamp(ecm->soc, 0.0, 1.0);
 
     /* model param update */
-    ecm_lookup_r0(ecm, util_clamp(ecm->soc, 0.0, 1.0), &R0);
+    ecm_lookup_r0(ecm, ecm->soc, &R0);
     ecm->R0 = util_temp_adj(R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
 
-    ecm_lookup_r1(ecm, util_clamp(ecm->soc, 0.0, 1.0), &R1);
+    ecm_lookup_r1(ecm, ecm->soc, &R1);
     ecm->R1 = util_temp_adj(R1, ecm->Ea_R1, ecm->T_C, ecm->params->T_ref_C); 
 
-    ecm_lookup_c1(ecm, util_clamp(ecm->soc, 0.0, 1.0), &C1);
+    ecm_lookup_c1(ecm, ecm->soc, &C1);
     ecm->C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);  
 
 
@@ -299,6 +296,10 @@ int ecm_update(ecm_t *ecm, double I, double T_amb_C, double t, double dt)
 
     /* update V_rc */
     ecm->V_rc += dt * ( -ecm->V_rc / (ecm->R1 * ecm->C1) + ecm->I / ecm->C1 );
+
+    /* temp update */
+    double powerloss = ecm->I * ecm->I * ecm->R0;
+    ecm->T_C += dt * (powerloss - ecm->ht * (ecm->T_C - ecm->T_amb_C)) / ecm->Cp;
 
 
     /* Track charging state for hysteresis sign */

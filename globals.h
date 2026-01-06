@@ -52,13 +52,14 @@
 #define HEAT_TRANS_COEF		(0.01)       	/* heat transfer coef W/°C */
 
 #define DEFAULT_I_NOISE		(0.001)   	/* default current noise in A */
-#define DEFAULT_V_NOISE		(0.002)   	/* default voltage noise in V */
+#define DEFAULT_V_NOISE		(0.02)   	/* default voltage noise in V */
 #define DEFAULT_T_NOISE		(0.01)   	/* default temp noise in deg C */
 
 #define DEFAULT_I_OFFSET	(0.0)   	/* default current offset A */
 #define DEFAULT_V_OFFSET	(0.0)   	/* default voltage offset in V */
 #define DEFAULT_T_OFFSET	(0.0)   	/* default temp offset in deg C */
 
+#define MIN_REST_TIME		(6.0*3600.0)	/* 6 hrs in seconds */
 
 #define CHG			(-1)
 #define REST			(0)

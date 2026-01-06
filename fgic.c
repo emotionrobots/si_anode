@@ -32,43 +32,44 @@ void fgic_fx(double *x, const double *u, double dt, void *p_usr)
    fgic_t *fgic = (fgic_t *)p_usr;
    ecm_t *ecm = fgic->ecm;
 
-   double R0=0, R1=0, C1=0;
 
    /* read state vars */
-   ecm->soc  = x[0];
-   ecm->V_rc = x[1];
-   ecm->T_C  = x[2];
+   double soc  = x[0];
+   double V_rc = x[1];
+   double T_C  = x[2];
 
    /* read inputs */
-   ecm->I       = u[0];
-   ecm->T_amb_C = u[1];
-   
-   /* update SOC */
+   double I       = u[0];
+   double T_amb_C = u[1];
+ 
+   /* update soc */ 
    double Qmax = ecm->Q_Ah * 3600;
-   ecm->soc -= (ecm->I*dt)/Qmax;
-   
+   soc -= (I*dt)/Qmax;   
+   soc = util_clamp(soc, 0.0, 1.0);
+
    /* lookup R0, R1, C1 */
-   ecm_lookup_r0(ecm, util_clamp(ecm->soc, 0.0, 1.0), &R0);
-   ecm->R0 = util_temp_adj(R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
-   ecm_lookup_r1(ecm, util_clamp(ecm->soc, 0.0, 1.0), &R1);
-   ecm->R1 = util_temp_adj(R1, ecm->Ea_R1, ecm->T_C, ecm->params->T_ref_C);
-   ecm_lookup_c1(ecm, util_clamp(ecm->soc, 0.0, 1.0), &C1);
-   ecm->C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
+   double R0=0, R1=0, C1=0;
+   ecm_lookup_r0(ecm, soc, &R0);
+   R0 = util_temp_adj(R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
+   ecm_lookup_r1(ecm, soc, &R1);
+   R1 = util_temp_adj(R1, ecm->Ea_R1, ecm->T_C, ecm->params->T_ref_C);
+   ecm_lookup_c1(ecm, soc, &C1);
+   C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
+
+   double tau = R1 * C1; 
+   if (tau < 1e-9) tau = 1e-9;
 
    /* update VRC */
-   double tau = ecm->R1 * ecm->C1; 
-   if (tau < 1e-9) tau = 1e-9;
-   ecm->V_rc += dt * (-ecm->V_rc / tau + ecm->I / ecm->C1);
+   V_rc += dt * (-V_rc / tau + I / C1);
 
    /* update T */
-   double powerloss = ecm->I * ecm->I * ecm->R0;
-   ecm->T_C += dt * (powerloss - ecm->ht * (ecm->T_C - ecm->T_amb_C)) / ecm->Cp;
-
+   double powerloss = I * I * R0;
+   T_C += dt * (powerloss - ecm->ht * (T_C - T_amb_C)) / ecm->Cp;
 
    /* update state vars */
-   x[0] = ecm->soc;
-   x[1] = ecm->V_rc;
-   x[2] = ecm->T_C;
+   x[0] = soc;
+   x[1] = V_rc;
+   x[2] = T_C;
 }
 
 
@@ -96,11 +97,12 @@ void fgic_hx(const double *x, double *z, void *p_usr)
    fgic_t *fgic = (fgic_t *)p_usr;
    ecm_t *ecm = fgic->ecm;
 
-   double soc  = x[0];
+   double soc  = util_clamp(x[0], 0.0, 1.0);
    double V_rc = x[1];
    double T_C  = x[2];
 
-   ecm_lookup_ocv(ecm, util_clamp(soc, 0.0, 1.0), &ecm->V_oc);
+   double V_oc;
+   ecm_lookup_ocv(ecm, soc, &V_oc);
 
    /* Track charging state for hysteresis sign */
    ecm->prev_chg_state = ecm->chg_state;
@@ -114,10 +116,15 @@ void fgic_hx(const double *x, double *z, void *p_usr)
       ecm->chg_state = REST;
 
    /* Update H */
-   ecm_lookup_h(ecm, util_clamp(soc, 0.0, 1.0), &ecm->H);
-  
+   double H;
+   ecm_lookup_h(ecm, soc, &H);
+
+   double R0;
+   ecm_lookup_r0(ecm, soc, &R0);
+   R0 = util_temp_adj(R0, ecm->Ea_R0, T_C, ecm->params->T_ref_C);   
+
    /* compute V_term and T_C */ 
-   z[0] = (ecm->V_oc + ecm->H) - V_rc - ecm->I * ecm->R0;
+   z[0] = (V_oc + H) - V_rc - ecm->I * R0;
    z[1] = T_C;
 }
 
@@ -142,7 +149,6 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    if (fgic==NULL) goto _err_ret;
 	   
    fgic->params = p;
-   fgic->I_quit = DEFAULT_I_QUIT;
    fgic->V_chg = DEFAULT_CV;
    fgic->I_chg = DEFAULT_CC;
    fgic->V_noise = DEFAULT_V_NOISE;
@@ -152,11 +158,14 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    fgic->I_offset = DEFAULT_I_OFFSET;
    fgic->T_offset = DEFAULT_T_OFFSET;
    fgic->period = FGIC_PERIOD_MS;
+   fgic->min_rest = MIN_REST_TIME;
+   fgic->rest_time = 0.0;
+
    fgic->batt = batt;
 
    fgic->ecm = (ecm_t *)malloc(sizeof(ecm_t));
-   if (ecm_init(fgic->ecm, &g_flash_params, T0_C)!=0) 
-      goto _err_ret;
+   if (ecm_init(fgic->ecm, p, T0_C) != 0) goto _err_ret;
+   fgic->ecm->soc = 0.8;  // wrong initially
 
    fgic->I_meas = batt->ecm->I;
    fgic->V_meas = batt->ecm->V_batt;
@@ -175,16 +184,20 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
 
    /* initial states and covariance */
    double x0[3]; 
+   x0[0] = fgic->ecm->soc;
+   x0[1] = fgic->ecm->V_rc;
+   x0[2] = fgic->ecm->T_C;
+
    double P0[9] = {
-      0.2, 0.0, 0.0,
-      0.0, 0.5, 0.0,
-      0.0, 0.0, 1.0
+      0.01, 0.0, 0.0,
+      0.0,  0.5, 0.0,
+      0.0,  0.0, 1.0
    }; 
 
    /* process noise */
    double q_soc = 1e-4;
    double q_vrc = 1e-4;
-   double q_T = 1e-4;
+   double q_T   = 1e-4;
    double Q[9] = {
       q_soc,   0.0,   0.0,
         0.0, q_vrc,   0.0,
@@ -263,30 +276,94 @@ int fgic_get_cccv(fgic_t *fgic, double *cc, double *cv)
 int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 {
    (void)t;
-   (void)dt;
+
 
    if (fgic == NULL || fgic->ecm == NULL) goto _err_ret;
- 
+   ecm_t *ecm = fgic->ecm;
+
+
    /* measure battery I, T, V with noise */
    fgic->I_meas = fgic->batt->ecm->I + fgic->I_noise * ((double)rand()/(double)RAND_MAX-0.5);
    fgic->T_meas = fgic->batt->ecm->T_C + fgic->T_noise * ((double)rand()/(double)RAND_MAX-0.5);
    fgic->V_meas = fgic->batt->ecm->V_batt + fgic->V_noise * ((double)rand()/(double)RAND_MAX-0.5);
+
+   ecm->I = fgic->I_meas;
+   ecm->T_amb_C = T_amb_C;
 
    double z_meas[2];
    z_meas[0] = fgic->V_meas;
    z_meas[1] = fgic->T_meas;
 
    double u[2];
-   u[0] = fgic->I_meas;
+   u[0] = ecm->I;
    u[1] = T_amb_C;
 
-#if 1
-   /* ukf_predict() calls process_model() */
+   /* Track charging state for hysteresis sign */
+   ecm->prev_chg_state = ecm->chg_state;
+
+   /* update chg state -- must be before update H */
+   if (ecm->I > ecm->I_quit)
+      ecm->chg_state = DSG;
+   else if (ecm->I < -ecm->I_quit)
+      ecm->chg_state = CHG;
+   else
+      ecm->chg_state = REST;
+
+   /* check if fgic->rest_time needs to reset */
+   if (ecm->chg_state != REST )
+      fgic->rest_time = 0.0;
+   else if (fgic->rest_time < fgic->min_rest)
+      fgic->rest_time += dt;
+
+
+   /* Predict x given u */
    if (ukf_predict(fgic->ukf, u, dt, (void *)fgic) != UKF_OK) goto _err_ret;
-    
-   /* ukf_update() calls  measure_model() */
+   /* Update x given z_meas */
    if (ukf_update(fgic->ukf, z_meas, (void *)fgic) != UKF_OK) goto _err_ret;
-#endif
+
+
+   /* update SOC from ukf */
+   double soc  = util_clamp(fgic->ukf->x[0], 0.0, 1.0);
+
+
+   /* update V_rc */
+   ecm->V_rc = fgic->ukf->x[1];
+
+
+   /* update T_C */
+   ecm->T_C  = fgic->ukf->x[2];
+
+
+   /* lookup R0, R1, C1 */
+   double R0, R1, C1;
+   ecm_lookup_r0(ecm, soc, &R0);
+   ecm->R0 = util_temp_adj(R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
+   ecm_lookup_r1(ecm, soc, &R1);
+   ecm->R1 = util_temp_adj(R1, ecm->Ea_R1, ecm->T_C, ecm->params->T_ref_C);
+   ecm_lookup_c1(ecm, soc, &C1);
+   ecm->C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
+
+
+   /* update H */
+   ecm_lookup_h(ecm, soc, &ecm->H);
+
+   /* update V_oc */
+   ecm->V_oc = fgic->V_meas - ecm->H + ecm->V_rc + ecm->I*ecm->R0;
+
+   /* update soc */
+   if (fgic->rest_time >= fgic->min_rest) 
+   {
+      ecm->soc = soc_from_ocv_best(ecm->V_oc, soc, ecm->chg_state, ecm->params);
+   }
+   else
+   {
+      ecm->soc = soc;
+   }
+
+
+   /* update V_batt */
+   ecm->V_batt = (ecm->V_oc + ecm->H) - ecm->V_rc - ecm->I*ecm->R0;
+
    return 0;
 
 _err_ret:

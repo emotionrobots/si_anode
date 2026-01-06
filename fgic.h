@@ -18,11 +18,12 @@
 #include <stdlib.h>
 
 
-#include "flash_params.h"
 #include "ecm.h"
 #include "batt.h"
 #include "ukf.h"
 #include "util.h"
+#include "flash_params.h"
+#include "soc_ocv_lookup.h"
 
 
 typedef struct {
@@ -34,7 +35,6 @@ typedef struct {
    double I_meas;              		// measured I
    double V_meas;              		// measured V
    double T_meas;              		// measured T
-   double I_quit;			// quit current 
    double V_chg;			// desired charging voltage
    double I_chg;			// desired charging current
    double V_noise;			// voltage measurement noise amplitude
@@ -43,6 +43,8 @@ typedef struct {
    double V_offset;			// voltage measurement offset
    double I_offset;			// current measurement offset 
    double T_offset;			// temperature measurement offset 
+   double rest_time;			// rest time since I=0 
+   double min_rest;			// minimum rest time in seconds 
 }
 fgic_t;
 

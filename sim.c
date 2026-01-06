@@ -187,6 +187,10 @@ int params_init(sim_t *sim)
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->fgic->T_meas;
 
+   sim->params[i].name = "soc_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->soc;
+
    sim->params[i].name = "V_fgic";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->fgic->ecm->V_batt;
@@ -270,6 +274,14 @@ int params_init(sim_t *sim)
    sim->params[i].name = "T_offset_fgic";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->fgic->T_offset;
+
+   sim->params[i].name = "rest_time_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->rest_time;
+
+   sim->params[i].name = "min_rest_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->min_rest;
 
    sim->params_sz = i;
    return i;
