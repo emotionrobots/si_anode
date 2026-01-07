@@ -166,11 +166,17 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    fgic->ecm = (ecm_t *)malloc(sizeof(ecm_t));
    if (ecm_init(fgic->ecm, p, T0_C) != 0) goto _err_ret;
    fgic->ecm->soc = 0.5;  // wrong initially
-
+			  //
+#if 0
    fgic->I_meas = batt->ecm->I;
    fgic->V_meas = batt->ecm->V_batt;
    fgic->T_meas = batt->ecm->T_C;
-
+#else
+   fgic->I_meas = batt->ecm->I + fgic->I_noise * ((double)rand()/(double)RAND_MAX-0.5);
+   fgic->T_meas = batt->ecm->T_C + fgic->T_noise * ((double)rand()/(double)RAND_MAX-0.5);
+   fgic->V_meas = batt->ecm->V_batt + fgic->V_noise * ((double)rand()/(double)RAND_MAX-0.5);
+#endif
+   fgic->ecm->T_C = fgic->T_meas; 
 
    /* UKF setup */
    const int n_x = 3;	/* SOC, VRC, T */
