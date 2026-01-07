@@ -7,6 +7,9 @@ This project runs a battery simulation that includes three entities:
 - fgic: fuel gauge IC with BMS functions that predicts accurate SOC and SOH
 - system: the system that represents load and charger
 
+![sim_model](docs/images/sim_model.png)
+
+
 ## Build
 ```
 make                # build 
