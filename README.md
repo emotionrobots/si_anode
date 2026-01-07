@@ -67,4 +67,25 @@ You should see the below chart popping up:
 ![plot of cc.csv](docs/images/plot_cc.png)
 
 
+## Example Pulsed Current Run
+
+Return `./app` and enter the following command sequence:
+```
+> set load_type_sys 1
+> set I_on_sys 10
+> set per_sys 500 
+> set dutycycle_sys 0.25
+> log start t3.csv V_batt V_fgic soc_fgic soc_batt
+> run 50000
+> run paused at t=5565.000000
+
+> set I_on_sys -10
+> run 50000
+> run paused at t=11505.000000
+
+> log stop
+> plot t3.csv
+
+```
+![plot of cc.csv](docs/images/plot_pulse.png)
 
