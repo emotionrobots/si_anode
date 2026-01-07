@@ -402,11 +402,29 @@ int f_plot(struct _menu *m, int argc, char **argv, void *p_usr)
          trace[k].color.g = 0;
          trace[k].color.b = 255;
       }
-      else
+      else if (k==3)
       {
-         trace[k].color.r = 255; 
+         trace[k].color.r = 128; 
          trace[k].color.g = 255;
-         trace[k].color.b = 255;
+         trace[k].color.b = 128;
+      }
+      else if (k==4)
+      {
+         trace[k].color.r = 80; 
+         trace[k].color.g = 128;
+         trace[k].color.b = 200;
+      }
+      else if (k==5)
+      {
+         trace[k].color.r = 180; 
+         trace[k].color.g = 20;
+         trace[k].color.b = 100;
+      }
+      else 
+      {
+         trace[k].color.r = 128; 
+         trace[k].color.g = 128;
+         trace[k].color.b = 128;
       }
       trace[k].color.a = 255;
    }

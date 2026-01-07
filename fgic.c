@@ -165,7 +165,7 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
 
    fgic->ecm = (ecm_t *)malloc(sizeof(ecm_t));
    if (ecm_init(fgic->ecm, p, T0_C) != 0) goto _err_ret;
-   fgic->ecm->soc = 0.8;  // wrong initially
+   fgic->ecm->soc = 0.5;  // wrong initially
 
    fgic->I_meas = batt->ecm->I;
    fgic->V_meas = batt->ecm->V_batt;
@@ -194,7 +194,7 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
       0.0,  0.0, 1.0
    }; 
 
-   /* process noise */
+   /* mprocess noise */
    double q_soc = 1e-4;
    double q_vrc = 1e-4;
    double q_T   = 1e-4;
@@ -334,7 +334,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    ecm->T_C  = fgic->ukf->x[2];
 
 
-   /* lookup R0, R1, C1 */
+   /* update R0, R1, C1 */
    double R0, R1, C1;
    ecm_lookup_r0(ecm, soc, &R0);
    ecm->R0 = util_temp_adj(R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
@@ -347,10 +347,12 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    /* update H */
    ecm_lookup_h(ecm, soc, &ecm->H);
 
+
    /* update V_oc */
    ecm->V_oc = fgic->V_meas - ecm->H + ecm->V_rc + ecm->I*ecm->R0;
 
-   /* update soc */
+
+   /* update soc based on OCV lookup if rest time long enough */
    if (fgic->rest_time >= fgic->min_rest) 
    {
       ecm->soc = soc_from_ocv_best(ecm->V_oc, soc, ecm->chg_state, ecm->params);
