@@ -195,9 +195,18 @@ int params_init(sim_t *sim)
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->fgic->ecm->V_batt;
 
+   sim->params[i].name = "V_prev_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->prev_V;
+
    sim->params[i].name = "I_fgic";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->fgic->ecm->I;
+
+   sim->params[i].name = "I_prev_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->prev_I;
+
 
    sim->params[i].name = "T_fgic";
    sim->params[i].type = "%lf";
@@ -282,6 +291,14 @@ int params_init(sim_t *sim)
    sim->params[i].name = "min_rest_fgic";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->fgic->min_rest;
+
+   sim->params[i].name = "learned_fgic";
+   sim->params[i].type = "%b";
+   sim->params[i++].value= &sim->fgic->learned;
+
+   sim->params[i].name = "buf_len_fgic";
+   sim->params[i].type = "%d";
+   sim->params[i++].value= &sim->fgic->buf_len;
 
    sim->params_sz = i;
    return i;

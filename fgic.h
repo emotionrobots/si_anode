@@ -25,6 +25,12 @@
 #include "flash_params.h"
 #include "soc_ocv_lookup.h"
 
+typedef struct {
+   double i;
+   double v;
+}
+iv_t;
+
 
 typedef struct {
    batt_t *batt;			// battery model
@@ -32,6 +38,9 @@ typedef struct {
    ecm_t *ecm;				// ECM model pointer
    ukf_t *ukf;				// UKF object pointer 
    int period;				// FGIC run period in ms
+   bool learned;			// vrc buffer len 
+   int buf_len;				// vrc buffer len 
+   iv_t vrc_buf[VRC_BUF_SZ];		// V_rc buffer to learn R1 C1
    double I_meas;              		// measured I
    double V_meas;              		// measured V
    double T_meas;              		// measured T

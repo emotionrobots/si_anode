@@ -104,17 +104,6 @@ void fgic_hx(const double *x, double *z, void *p_usr)
    double V_oc;
    ecm_lookup_ocv(ecm, soc, &V_oc);
 
-   /* Track charging state for hysteresis sign */
-   ecm->prev_chg_state = ecm->chg_state;
-
-   /* update chg state -- must be before update H */
-   if (ecm->I > ecm->I_quit)
-      ecm->chg_state = DSG;
-   else if (ecm->I < -ecm->I_quit)
-      ecm->chg_state = CHG;
-   else
-      ecm->chg_state = REST;
-
    /* Update H */
    double H;
    ecm_lookup_h(ecm, soc, &H);
@@ -160,22 +149,20 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    fgic->period = FGIC_PERIOD_MS;
    fgic->min_rest = MIN_REST_TIME;
    fgic->rest_time = 0.0;
+   fgic->learned = false;
+   fgic->buf_len = 0;
 
    fgic->batt = batt;
 
    fgic->ecm = (ecm_t *)malloc(sizeof(ecm_t));
    if (ecm_init(fgic->ecm, p, T0_C) != 0) goto _err_ret;
-   fgic->ecm->soc = 0.5;  // wrong initially
-			  //
-#if 0
-   fgic->I_meas = batt->ecm->I;
-   fgic->V_meas = batt->ecm->V_batt;
-   fgic->T_meas = batt->ecm->T_C;
-#else
+   fgic->ecm->soc = 0.5;  // set wrong initially
+   fgic->ecm->prev_V = fgic->ecm->V_batt;
+   fgic->ecm->prev_I = fgic->ecm->I;
+
    fgic->I_meas = batt->ecm->I + fgic->I_noise * ((double)rand()/(double)RAND_MAX-0.5);
    fgic->T_meas = batt->ecm->T_C + fgic->T_noise * ((double)rand()/(double)RAND_MAX-0.5);
    fgic->V_meas = batt->ecm->V_batt + fgic->V_noise * ((double)rand()/(double)RAND_MAX-0.5);
-#endif
    fgic->ecm->T_C = fgic->T_meas; 
 
    /* UKF setup */
@@ -200,7 +187,7 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
       0.0,  0.0, 1.0
    }; 
 
-   /* mprocess noise */
+   /* process noise */
    double q_soc = 1e-4;
    double q_vrc = 1e-4;
    double q_T   = 1e-4;
@@ -295,6 +282,8 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 
    ecm->I = fgic->I_meas;
    ecm->T_amb_C = T_amb_C;
+   ecm->V_batt = fgic->V_meas;
+
 
    double z_meas[2];
    z_meas[0] = fgic->V_meas;
@@ -304,22 +293,6 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    u[0] = ecm->I;
    u[1] = T_amb_C;
 
-   /* Track charging state for hysteresis sign */
-   ecm->prev_chg_state = ecm->chg_state;
-
-   /* update chg state -- must be before update H */
-   if (ecm->I > ecm->I_quit)
-      ecm->chg_state = DSG;
-   else if (ecm->I < -ecm->I_quit)
-      ecm->chg_state = CHG;
-   else
-      ecm->chg_state = REST;
-
-   /* check if fgic->rest_time needs to reset */
-   if (ecm->chg_state != REST )
-      fgic->rest_time = 0.0;
-   else if (fgic->rest_time < fgic->min_rest)
-      fgic->rest_time += dt;
 
 
    /* Predict x given u */
@@ -355,7 +328,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 
 
    /* update V_oc */
-   ecm->V_oc = fgic->V_meas - ecm->H + ecm->V_rc + ecm->I*ecm->R0;
+   ecm->V_oc = ecm->V_batt - ecm->H + ecm->V_rc + ecm->I*ecm->R0;
 
 
    /* update soc based on OCV lookup if rest time long enough */
@@ -369,8 +342,105 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    }
 
 
-   /* update V_batt */
-   ecm->V_batt = (ecm->V_oc + ecm->H) - ecm->V_rc - ecm->I*ecm->R0;
+#if 1
+   //-----------------------------------------------------------------------------
+   //  Perform model learning/update to track H, R0, R1, C1
+   //-----------------------------------------------------------------------------
+  
+   /* Collect data if at REST */
+   if (ecm->chg_state == REST)
+   {
+      double R0_est=0, R1_est=0, C1_est=0; 
+      double R0_ref=0, R1_ref=0, C1_ref=0; 
+      double ratio;
+
+      /* estimate R0 from initial dV from CHG->REST or DSG->REST by R0 = dV/dI */
+      if (ecm->prev_chg_state != REST)
+      {
+         double dV = ecm->V_batt - fgic->ecm->prev_V;
+	 double dI = ecm->I - fgic->ecm->prev_I;
+
+	 /* temperature adjust R0 and update R0 table at current soc */
+	 R0_est = util_temp_unadj(fabs(dV/dI), ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
+         ecm_lookup_r0(ecm, ecm->soc, &R0_ref);
+         ratio = R0_est / R0_ref;
+         for (int k=0; k<SOC_GRIDS-1; k++)
+            ecm->params->r0_tbl[k] *= ratio; 
+
+	 /* clear vrc_buf */
+         fgic->buf_len = 0; 
+	 fgic->learned = false;
+      }
+
+      if (fgic->buf_len < VRC_BUF_SZ)    	/* record VRC data if not full */ 
+      {
+	 fgic->vrc_buf[fgic->buf_len].i = ecm->I;
+	 fgic->vrc_buf[fgic->buf_len].v = ecm->V_batt - ecm->H - ecm->I * R0_est;
+	 fgic->buf_len++;
+      }
+      else if (!fgic->learned)		/* if full and not learned, learn the parameters */ 
+      {
+         /* Fit dV_rc/dt = -a*Vrc + b*I (a=1/(R1*C1), b=1/C1) */
+	 double Sa=0, Sb=0, Sab=0, Sya=0, Syb=0;
+         for (int k=0; k<VRC_BUF_SZ-1; k++)
+	 {
+            double dvrc = (fgic->vrc_buf[k+1].v - fgic->vrc_buf[k].v) / dt;
+	    double x1 = fgic->vrc_buf[k].v;
+	    double x2 = fgic->vrc_buf[k].i;
+            Sa += x1*x1;
+	    Sb += x2*x2;
+	    Sab += x1*x2;
+	    Sya += x1*dvrc;
+	    Syb += x2*dvrc;
+	 } 
+	 double det = Sa*Sb - Sab*Sab;
+	 double a = (Sb*Sya - Sab*Syb) / (det + 1e-12);
+	 double b = (-Sab*Sya + Sa*Syb) / (det + 1e-12);
+
+	 C1_est = 1.0/(b+1e-12);
+	 R1_est = fabs(1.0/(a*C1_est+1e-12));
+
+	 /* update C1 table */
+	 C1_est = util_temp_unadj(C1_est, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
+         ecm_lookup_c1(ecm, ecm->soc, &C1_ref);
+         ratio = C1_est / C1_ref;
+         for (int k=0; k<SOC_GRIDS-1; k++)
+            ecm->params->c1_tbl[k] *= ratio; 
+
+	 /* update R1 table */
+	 R1_est = util_temp_unadj(R1_est, ecm->Ea_R1, ecm->T_C, ecm->params->T_ref_C);
+         ecm_lookup_r1(ecm, ecm->soc, &R1_ref);
+         ratio = R1_est / R1_ref;
+         for (int k=0; k<SOC_GRIDS-1; k++)
+            ecm->params->r1_tbl[k] *= ratio; 
+
+	 fgic->learned = true;
+      }
+   }
+#endif  
+
+   //-----------------------------------------------------------------------------
+   //  Update charging state 
+   //-----------------------------------------------------------------------------
+   fgic->ecm->prev_V = ecm->V_batt;
+   fgic->ecm->prev_I = ecm->I;
+
+   ecm->prev_chg_state = ecm->chg_state;
+
+   /* update chg state -- must be before update H */
+   if (ecm->I > ecm->I_quit)
+      ecm->chg_state = DSG;
+   else if (ecm->I < -ecm->I_quit)
+      ecm->chg_state = CHG;
+   else
+      ecm->chg_state = REST;
+
+   /* check if fgic->rest_time needs to reset */
+   if (ecm->chg_state != REST )
+      fgic->rest_time = 0.0;
+   else if (fgic->rest_time < fgic->min_rest)
+      fgic->rest_time += dt;
+
 
    return 0;
 

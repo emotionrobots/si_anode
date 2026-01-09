@@ -132,7 +132,8 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    ecm_lookup_c1(ecm, ecm->soc, &ecm->C1);
 
 
-   ecm->chg_state = REST;
+   ecm->prev_chg_state = REST;
+   ecm->chg_state = ecm->prev_chg_state;
 
    memset(ecm->Vrc_buf, 0, VRC_BUF_SZ*sizeof(double));
    ecm->Vrc_buf_len = 0;

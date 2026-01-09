@@ -22,7 +22,7 @@
 
 #define DT                      (0.25)          /* Second */
 #define TEMP_0                  (25.0)          /* Degree C */
-#define VRC_BUF_SZ              (64)            /* VRC buffer size */
+#define VRC_BUF_SZ              (256)           /* VRC buffer size */
 #define SOC_GRIDS               (21)            /* SOC grip points */
 #define MAX_RUN_TIME		(1000000)	/* max simulation time in sec */
 #define FGIC_PERIOD_MS		(250)		/* FGIC run period (msec) */
@@ -34,8 +34,6 @@
 #define MAX_PARAMS		(100)		/* max number of string-enabled parameters */
 #define FN_LEN			(80)		/* logfile name length */
 #define MAX_PLOT_PTS		(200000)	/* max number of string-enabled parameters */
-//#define DEFAULT_H_CHG		(0.2)		/* default OCV chg hysteresis */
-//#define DEFAULT_H_DSG		(-0.2)		/* default OCV dsg hysteresis */
 #define DEFAULT_H_CHG		(0.02)		/* default OCV chg hysteresis */
 #define DEFAULT_H_DSG		(-0.02)		/* default OCV dsg hysteresis */
 #define H_DSG_TBL		NMC_H_DSG_TBL	/* H_DSG table */

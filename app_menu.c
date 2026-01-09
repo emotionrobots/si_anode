@@ -609,6 +609,90 @@ _err_ret:
 
 /*!
  *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn		int f_compare(struct _menu *m, int argc, char **argv, void *p_usr)
+ *
+ *  @brief	Compare fgic ecm model with batt ecm model	
+ *
+ *  @note	compare	
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static
+int f_compare(struct _menu *m, int argc, char **argv, void *p_usr)
+{
+   if (m==NULL || p_usr==NULL || argv==NULL) return -1;
+   sim_t *sim = (sim_t *)p_usr;
+   fgic_t *fgic = sim->fgic;
+   batt_t *batt = sim->batt;
+
+
+   if (argc != 2) 
+   {
+      printf("%s:\t%s (usage:%s)\n", m->name, m->desc, m->help);
+      goto _err_ret;
+   }
+   else if (0==strcmp(argv[1], "R0"))
+   {
+      for (int k=0; k<SOC_GRIDS; k++)
+      {
+         printf("Batt_R0[%d]=%lf, FGIC_R0[%d]=%lf\n", 
+                 k, batt->ecm->params->r0_tbl[k],
+		 k, fgic->ecm->params->r0_tbl[k]);
+      }
+   }
+   else if (0==strcmp(argv[1], "R1"))
+   {
+      for (int k=0; k<SOC_GRIDS; k++)
+      {
+         printf("Batt_R1[%d]=%lf, FGIC_R1[%d]=%lf\n", 
+                 k, batt->ecm->params->r1_tbl[k],
+		 k, fgic->ecm->params->r1_tbl[k]);
+      }
+   }
+   else if (0==strcmp(argv[1], "C1"))
+   {
+      for (int k=0; k<SOC_GRIDS; k++)
+      {
+         printf("Batt_C1[%d]=%lf, FGIC_C1[%d]=%lf\n", 
+                 k, batt->ecm->params->c1_tbl[k],
+		 k, fgic->ecm->params->c1_tbl[k]);
+      }
+   }
+   else if (0==strcmp(argv[1], "h_dsg"))
+   {
+      for (int k=0; k<SOC_GRIDS; k++)
+      {
+         printf("Batt_h_dsg[%d]=%lf, FGIC_h_dsg[%d]=%lf\n", 
+                 k, batt->ecm->params->h_dsg_tbl[k],
+		 k, fgic->ecm->params->h_dsg_tbl[k]);
+      }
+   }
+   else if (0==strcmp(argv[1], "h_chg"))
+   {
+      for (int k=0; k<SOC_GRIDS; k++)
+      {
+         printf("Batt_h_chg[%d]=%lf, FGIC_h_chg[%d]=%lf\n", 
+                 k, batt->ecm->params->h_chg_tbl[k],
+		 k, fgic->ecm->params->h_chg_tbl[k]);
+      }
+   }
+   else
+   {
+      printf("%s:\t%s (usage:%s)\n", m->name, m->desc, m->help);
+      goto _err_ret;
+   }
+
+   return 0;
+
+_err_ret:
+   return -1;
+}
+
+
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
  *---------------------------------------------------------------------------------------------------------------------
  */
 static 
@@ -685,6 +769,9 @@ menu_t *app_menu_init()
 
    menu_t *m_plot = menu_create("plot", "plot a csv file", "plot <file>", "", f_plot);
    menu_add_peer(m_root, m_plot);
+
+   menu_t *m_compare = menu_create("compare", "compare fgic & batt ecm model", "compare", "", f_compare);
+   menu_add_peer(m_root, m_compare);
 
    menu_t *m_cd = menu_create("cd", "cd command", "cd <here | there>", "", f_cd);
    menu_add_peer(m_root, m_cd);

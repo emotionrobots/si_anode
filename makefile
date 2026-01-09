@@ -13,6 +13,9 @@ INCS 	:= *.h
 
 all: $(TARGET)
 
+fifo.o: fifo.c $(INCS)
+	$(CC) $(CFLAGS) -c $< -o $@
+
 util.o: util.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
