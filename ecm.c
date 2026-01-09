@@ -106,9 +106,15 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    ecm->I_quit = p->I_quit;
 
    /* Arrhenius parameters (example values) */
+#if 0
    ecm->Ea_R0 =  0.01; 
    ecm->Ea_R1 =  0.01;
    ecm->Ea_C1 = -0.01;
+#else
+   ecm->Ea_R0 =  0.0; 
+   ecm->Ea_R1 =  0.0;
+   ecm->Ea_C1 = -0.0;
+#endif
 
    /* Capacity and thermal */
    ecm->Q_Ah = Q_DESIGN; 	/* Ah */

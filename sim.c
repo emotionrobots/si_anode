@@ -292,9 +292,9 @@ int params_init(sim_t *sim)
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->fgic->min_rest;
 
-   sim->params[i].name = "learned_fgic";
+   sim->params[i].name = "learning_fgic";
    sim->params[i].type = "%b";
-   sim->params[i++].value= &sim->fgic->learned;
+   sim->params[i++].value= &sim->fgic->learning;
 
    sim->params[i].name = "buf_len_fgic";
    sim->params[i].type = "%d";
@@ -409,6 +409,7 @@ bool sim_get_pause(sim_t *sim)
 static
 void *sim_loop(void *arg)
 {
+   int rc = 0;
    if (arg==NULL) return NULL;
    sim_t *sim = (sim_t *)arg;
 
@@ -438,8 +439,13 @@ void *sim_loop(void *arg)
       /* update sim */
       LOCK(&sim->mtx); 
       done = sim->done;
-      if (!done) sim_update(sim);  
+      if (!done) 
+      {	      
+	 rc = sim_update(sim);   
+      }
       UNLOCK(&sim->mtx); 
+
+      if (rc != 0) goto _err_ret;
 
       if (done) break;
 
@@ -447,7 +453,10 @@ void *sim_loop(void *arg)
    }
  
    printf("run completed at t=%lf\n", sim->t); 
+   return NULL;
 
+_err_ret:
+   printf("sim_update() error at t=%lf\n", sim->t); 
    return NULL;
 }
 

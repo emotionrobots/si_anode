@@ -38,7 +38,7 @@ typedef struct {
    ecm_t *ecm;				// ECM model pointer
    ukf_t *ukf;				// UKF object pointer 
    int period;				// FGIC run period in ms
-   bool learned;			// vrc buffer len 
+   bool learning;			// vrc learning in progress 
    int buf_len;				// vrc buffer len 
    iv_t vrc_buf[VRC_BUF_SZ];		// V_rc buffer to learn R1 C1
    double I_meas;              		// measured I

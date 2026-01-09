@@ -149,7 +149,7 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    fgic->period = FGIC_PERIOD_MS;
    fgic->min_rest = MIN_REST_TIME;
    fgic->rest_time = 0.0;
-   fgic->learned = false;
+   fgic->learning = false;
    fgic->buf_len = 0;
 
    fgic->batt = batt;
@@ -364,57 +364,61 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 	 R0_est = util_temp_unadj(fabs(dV/dI), ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
          ecm_lookup_r0(ecm, ecm->soc, &R0_ref);
          ratio = R0_est / R0_ref;
-         for (int k=0; k<SOC_GRIDS-1; k++)
+         for (int k=0; k<SOC_GRIDS; k++)
             ecm->params->r0_tbl[k] *= ratio; 
 
 	 /* clear vrc_buf */
          fgic->buf_len = 0; 
-	 fgic->learned = false;
+	 fgic->learning = true;
       }
 
-      if (fgic->buf_len < VRC_BUF_SZ)    	/* record VRC data if not full */ 
+      if (fgic->learning) 
       {
-	 fgic->vrc_buf[fgic->buf_len].i = ecm->I;
-	 fgic->vrc_buf[fgic->buf_len].v = ecm->V_batt - ecm->H - ecm->I * R0_est;
-	 fgic->buf_len++;
-      }
-      else if (!fgic->learned)		/* if full and not learned, learn the parameters */ 
-      {
-         /* Fit dV_rc/dt = -a*Vrc + b*I (a=1/(R1*C1), b=1/C1) */
-	 double Sa=0, Sb=0, Sab=0, Sya=0, Syb=0;
-         for (int k=0; k<VRC_BUF_SZ-1; k++)
+	 if (fgic->buf_len < VRC_BUF_SZ)    	/* record VRC data if not full */ 
 	 {
-            double dvrc = (fgic->vrc_buf[k+1].v - fgic->vrc_buf[k].v) / dt;
-	    double x1 = fgic->vrc_buf[k].v;
-	    double x2 = fgic->vrc_buf[k].i;
-            Sa += x1*x1;
-	    Sb += x2*x2;
-	    Sab += x1*x2;
-	    Sya += x1*dvrc;
-	    Syb += x2*dvrc;
-	 } 
-	 double det = Sa*Sb - Sab*Sab;
-	 double a = (Sb*Sya - Sab*Syb) / (det + 1e-12);
-	 double b = (-Sab*Sya + Sa*Syb) / (det + 1e-12);
+	    fgic->vrc_buf[fgic->buf_len].i = ecm->I;
+	    fgic->vrc_buf[fgic->buf_len].v = ecm->V_batt - ecm->H - ecm->I * R0_est;
+	    fgic->buf_len++;
+         }
+         else 					/* is full and learning, learn the parameters */ 
+         {
+            /* Fit dV_rc/dt = -a*Vrc + b*I (a=1/(R1*C1), b=1/C1) */
+	    double Sa=0, Sb=0, Sab=0, Sya=0, Syb=0;
+            for (int k=0; k<VRC_BUF_SZ-1; k++)
+	    {
+               double dvrc = (fgic->vrc_buf[k+1].v - fgic->vrc_buf[k].v) / dt;
+	       double x1 = fgic->vrc_buf[k].v;
+	       double x2 = fgic->vrc_buf[k].i;
+               Sa += x1*x1;
+	       Sb += x2*x2;
+	       Sab += x1*x2;
+	       Sya += x1*dvrc;
+	       Syb += x2*dvrc;
+	    } 
+	    double det = Sa*Sb - Sab*Sab;
+	    double a = (Sb*Sya - Sab*Syb) / (det + 1e-12);
+	    double b = (-Sab*Sya + Sa*Syb) / (det + 1e-12);
 
-	 C1_est = 1.0/(b+1e-12);
-	 R1_est = fabs(1.0/(a*C1_est+1e-12));
+	    C1_est = 1.0/(b+1e-12);
+	    R1_est = fabs(1.0/(a*C1_est+1e-12));
 
-	 /* update C1 table */
-	 C1_est = util_temp_unadj(C1_est, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
-         ecm_lookup_c1(ecm, ecm->soc, &C1_ref);
-         ratio = C1_est / C1_ref;
-         for (int k=0; k<SOC_GRIDS-1; k++)
-            ecm->params->c1_tbl[k] *= ratio; 
+	    /* update C1 table */
+	    C1_est = util_temp_unadj(C1_est, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
+            ecm_lookup_c1(ecm, ecm->soc, &C1_ref);
+            ratio = C1_est / C1_ref;
+            for (int k=0; k<SOC_GRIDS; k++)
+               ecm->params->c1_tbl[k] *= ratio; 
 
-	 /* update R1 table */
-	 R1_est = util_temp_unadj(R1_est, ecm->Ea_R1, ecm->T_C, ecm->params->T_ref_C);
-         ecm_lookup_r1(ecm, ecm->soc, &R1_ref);
-         ratio = R1_est / R1_ref;
-         for (int k=0; k<SOC_GRIDS-1; k++)
-            ecm->params->r1_tbl[k] *= ratio; 
+	    /* update R1 table */
+	    R1_est = util_temp_unadj(R1_est, ecm->Ea_R1, ecm->T_C, ecm->params->T_ref_C);
+            ecm_lookup_r1(ecm, ecm->soc, &R1_ref);
+            ratio = R1_est / R1_ref;
+            for (int k=0; k<SOC_GRIDS; k++)
+               ecm->params->r1_tbl[k] *= ratio; 
 
-	 fgic->learned = true;
+	    fgic->learning = false;
+	    printf("learned...\n");
+         }
       }
    }
 #endif  
