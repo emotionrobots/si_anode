@@ -29,12 +29,12 @@ typedef struct
    double V_rc;					/* VRC */ 
    double V_oc;					/* OCV */
    double soc;     				/* current SOC (0..1) */
-   double H;       				/* current hysteresis */
+   double H;       				/* OCV hysteresis */
    double T_C;       				/* core cell temperature [°C] */
    double T_amb_C;				/* ambient temp C */
    double I;					/* ECM current */
    double prev_I;				/* previous current */
-   double prev_V;				/* previous voltage */
+   double prev_V_rc;				/* previous Vrc voltage */
 
    /* Arrhenius activation energies (J/mol) for R0, R1, C1 */
    double Ea_R0;
@@ -47,6 +47,9 @@ typedef struct
    /* Thermal */
    double Cp;    				/* thermal capacitance [J/°C] */
    double ht;    				/* thermal transfer [W/°C] */
+
+   /* Hysteresis */
+   double ah;					/* hysteresis decay rate */
 
    /* charging state 0 rest, -1 charge, +1 discharge */
    int chg_state;

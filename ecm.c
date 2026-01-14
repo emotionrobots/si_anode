@@ -106,15 +106,9 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    ecm->I_quit = p->I_quit;
 
    /* Arrhenius parameters (example values) */
-#if 0
-   ecm->Ea_R0 =  0.01; 
-   ecm->Ea_R1 =  0.01;
-   ecm->Ea_C1 = -0.01;
-#else
-   ecm->Ea_R0 =  0.0; 
-   ecm->Ea_R1 =  0.0;
-   ecm->Ea_C1 = -0.0;
-#endif
+   ecm->Ea_R0 = DEFAULT_EA_R0; 
+   ecm->Ea_R1 = DEFAULT_EA_R1;
+   ecm->Ea_C1 = DEFAULT_EA_C1;
 
    /* Capacity and thermal */
    ecm->Q_Ah = Q_DESIGN; 	/* Ah */
@@ -124,13 +118,16 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    /* Dynamic state defaults */
    ecm->soc = ecm->params->soc_tbl[SOC_GRIDS-1];
    ecm->V_oc = ecm->params->ocv_tbl[SOC_GRIDS-1];
-   ecm->prev_V = ecm->V_oc;
-   ecm->V_batt = ecm->prev_V;
+   ecm->V_batt = ecm->V_oc;
+   ecm->prev_V_rc = ecm->V_rc;
    ecm->prev_I = 0.0;
    ecm->I = ecm->prev_I;
    ecm->T_C = T0_C;
    ecm->V_rc = 0.0;
+
+   /* Hysteresis */
    ecm->H = ecm->params->h_dsg_tbl[SOC_GRIDS-1];;
+   ecm->ah = ALPHA_H;
 
    /* R0, R1, C1 */
    ecm_lookup_r0(ecm, ecm->soc, &ecm->R0);
@@ -191,17 +188,23 @@ int ecm_lookup_ocv(const ecm_t *ecm, double soc, double *val)
  */
 int ecm_lookup_h(const ecm_t *ecm, double soc, double *val)
 {
-    int rc = 0;
-
-    *val = ecm->H;
+    int rc=0;
+    double alpha = ecm->ah; 
+    double H=0;
     flash_params_t *params = ecm->params;
 
     if (ecm->chg_state==CHG)
-       rc = tbl_interp(params->soc_tbl, params->h_chg_tbl, SOC_GRIDS, soc, val);
+    {
+       rc = tbl_interp(params->soc_tbl, params->h_chg_tbl, SOC_GRIDS, soc, &H);
+       *val = alpha*ecm->H + (1.0-alpha)*H;
+    }
     else if (ecm->chg_state==DSG) 
-       rc = tbl_interp(params->soc_tbl, params->h_dsg_tbl, SOC_GRIDS, soc, val);
+    {
+       rc = tbl_interp(params->soc_tbl, params->h_dsg_tbl, SOC_GRIDS, soc, &H);
+       *val = alpha*ecm->H + (1.0-alpha)*H;
+    }
     else
-       *val = ecm->H;
+       *val = ecm->H;   // no change
 
     return rc;
 }

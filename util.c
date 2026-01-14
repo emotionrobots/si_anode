@@ -84,10 +84,6 @@ double util_clamp(double x, double lo, double hi)
  */
 double util_temp_adj(double k_ref, double Ea, double T_C, double Tref_C)
 {
-    /* If Ea ~ 0, skip scaling. */
-    // if (fabs(Ea) < 1.0) return k_ref;
-
-    // const double Rg = 8.314462618; /* J/mol/K */
     double T  = T_C     + 273.15;
     double Tr = Tref_C  + 273.15;
 
@@ -95,7 +91,6 @@ double util_temp_adj(double k_ref, double Ea, double T_C, double Tref_C)
     if (Tr < 1.0) Tr = 1.0;
 
     double factor = exp( -Ea * (1.0 / T - 1.0 / Tr) );
-    // double factor = exp( -Ea / Rg * (1.0 / T - 1.0 / Tr) );
     return k_ref * factor;
 }
 
@@ -115,10 +110,6 @@ double util_temp_adj(double k_ref, double Ea, double T_C, double Tref_C)
  */
 double util_temp_unadj(double k_val, double Ea, double T_C, double Tref_C)
 {
-    /* If Ea ~ 0, skip scaling. */
-    // if (fabs(Ea) < 1.0) return k_val;
-
-    // const double Rg = 8.314462618; /* J/mol/K */
     double T  = T_C     + 273.15;
     double Tr = Tref_C  + 273.15;
 
@@ -126,7 +117,6 @@ double util_temp_unadj(double k_val, double Ea, double T_C, double Tref_C)
     if (Tr < 1.0) Tr = 1.0;
 
     double factor = exp( Ea * (1.0 / T - 1.0 / Tr) );
-    // double factor = exp( Ea / Rg * (1.0 / T - 1.0 / Tr) );
     return k_val * factor;
 }
 

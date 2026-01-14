@@ -22,7 +22,8 @@
 #include "scope_plot.h"
 
 
-extern flash_params_t g_flash_params;
+extern flash_params_t g_batt_flash_params;
+extern flash_params_t g_fgic_flash_params;
 
 
 /*!
@@ -135,6 +136,10 @@ int params_init(sim_t *sim)
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->batt->ecm->V_oc;
 
+   sim->params[i].name = "V_rc_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->V_rc;
+
    sim->params[i].name = "I_sys";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->system->I;
@@ -151,23 +156,23 @@ int params_init(sim_t *sim)
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->system->I_chg;
 
-   sim->params[i].name = "load_type_sys";
+   sim->params[i].name = "load_type";
    sim->params[i].type = "%d";
    sim->params[i++].value= &sim->system->load_type;
 
-   sim->params[i].name = "I_on_sys";
+   sim->params[i].name = "I_on";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->system->I_on;
 
-   sim->params[i].name = "I_off_sys";
+   sim->params[i].name = "I_off";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->system->I_off;
 
-   sim->params[i].name = "per_sys";
+   sim->params[i].name = "period";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->system->per;
 
-   sim->params[i].name = "dutycycle_sys";
+   sim->params[i].name = "dutycycle";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->system->dutycycle;
 
@@ -195,9 +200,9 @@ int params_init(sim_t *sim)
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->fgic->ecm->V_batt;
 
-   sim->params[i].name = "V_prev_fgic";
+   sim->params[i].name = "V_prev_rc_fgic";
    sim->params[i].type = "%lf";
-   sim->params[i++].value= &sim->fgic->ecm->prev_V;
+   sim->params[i++].value= &sim->fgic->ecm->prev_V_rc;
 
    sim->params[i].name = "I_fgic";
    sim->params[i].type = "%lf";
@@ -206,7 +211,6 @@ int params_init(sim_t *sim)
    sim->params[i].name = "I_prev_fgic";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->fgic->ecm->prev_I;
-
 
    sim->params[i].name = "T_fgic";
    sim->params[i].type = "%lf";
@@ -299,6 +303,34 @@ int params_init(sim_t *sim)
    sim->params[i].name = "buf_len_fgic";
    sim->params[i].type = "%d";
    sim->params[i++].value= &sim->fgic->buf_len;
+
+   sim->params[i].name = "dV_max_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->dV_max;
+
+   sim->params[i].name = "dV_min_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->dV_min;
+
+   sim->params[i].name = "dI_max_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->dI_max;
+
+   sim->params[i].name = "dI_min_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->dI_min;
+
+   sim->params[i].name = "V_oc_est_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->V_oc_est;
+
+   sim->params[i].name = "V_oc_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->V_oc;
+
+   sim->params[i].name = "V_rc_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->V_rc;
 
    sim->params_sz = i;
    return i;
@@ -498,10 +530,10 @@ sim_t *sim_create(double t0, double dt, double temp0)
    sim->pause = true;
 
 
-   sim->batt = batt_create(&g_flash_params, temp0);
+   sim->batt = batt_create(&g_batt_flash_params, temp0);
    if (sim->batt == NULL) goto err_ret;
 
-   sim->fgic = fgic_create(sim->batt, &g_flash_params, temp0);
+   sim->fgic = fgic_create(sim->batt, &g_fgic_flash_params, temp0);
    if (sim->fgic == NULL) goto err_ret;
 
    sim->system = (system_t *)system_create(sim->fgic);

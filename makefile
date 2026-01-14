@@ -5,7 +5,7 @@ LDFLAGS := $(shell sdl2-config --libs) -lSDL2_ttf -pthread -lm -lc
 
 TARGET  := app
 OBJS    := system.o fgic.o batt.o ecm.o itimer.o app.o flash_params.o sim.o util.o \
-	   menu.o app_menu.o scope_plot.o ukf.o soc_ocv_lookup.o
+	   menu.o app_menu.o scope_plot.o ukf.o soc_ocv_lookup.o linfit.o
 INCS 	:= *.h 
 
 
@@ -13,7 +13,7 @@ INCS 	:= *.h
 
 all: $(TARGET)
 
-fifo.o: fifo.c $(INCS)
+linfit.o: linfit.c $(INCS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 util.o: util.c $(INCS)

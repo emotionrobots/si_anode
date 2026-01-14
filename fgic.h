@@ -25,12 +25,6 @@
 #include "flash_params.h"
 #include "soc_ocv_lookup.h"
 
-typedef struct {
-   double i;
-   double v;
-}
-iv_t;
-
 
 typedef struct {
    batt_t *batt;			// battery model
@@ -40,7 +34,8 @@ typedef struct {
    int period;				// FGIC run period in ms
    bool learning;			// vrc learning in progress 
    int buf_len;				// vrc buffer len 
-   iv_t vrc_buf[VRC_BUF_SZ];		// V_rc buffer to learn R1 C1
+   double vrc_x[VRC_BUF_SZ];		// V_rc buffer time 
+   double vrc_y[VRC_BUF_SZ];		// V_rc buffer voltage 
    double I_meas;              		// measured I
    double V_meas;              		// measured V
    double T_meas;              		// measured T
@@ -54,6 +49,11 @@ typedef struct {
    double T_offset;			// temperature measurement offset 
    double rest_time;			// rest time since I=0 
    double min_rest;			// minimum rest time in seconds 
+   double dI_max;			// max dI 
+   double dI_min;			// min dI 
+   double dV_max;			// max dV 
+   double dV_min;			// min dV
+   double V_oc_est;			// V_oc estimate from CCV 
 }
 fgic_t;
 

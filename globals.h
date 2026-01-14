@@ -42,16 +42,17 @@
 #define R0_TBL			NMC_R0_TBL	/* R0 table */
 #define R1_TBL			NMC_R1_TBL	/* R1 table */
 #define C1_TBL			NMC_C1_TBL	/* C1 table */
+#define ALPHA_H			(0.05)		/* OCV hysteresis transient dynamics */
 
 #define Q_DESIGN		(4.0)		/* 4 Ah */
 #define DEFAULT_SYS_LOAD	SYS_LOAD_CC	/* default system load type */
 
 #define HEAT_CAPACITY		(200.0)      	/* heat capacity J/°C */
-#define HEAT_TRANS_COEF		(0.01)       	/* heat transfer coef W/°C */
+#define HEAT_TRANS_COEF		(0.10)       	/* heat transfer coef W/°C */
 
-#define DEFAULT_I_NOISE		(0.001)   	/* default current noise in A */
-#define DEFAULT_V_NOISE		(0.02)   	/* default voltage noise in V */
-#define DEFAULT_T_NOISE		(0.01)   	/* default temp noise in deg C */
+#define DEFAULT_I_NOISE		(1.0e-6)   	/* default current noise in A */
+#define DEFAULT_V_NOISE		(1.0e-6)   	/* default voltage noise in V */
+#define DEFAULT_T_NOISE		(0.25)   	/* default temp noise in deg C */
 
 #define DEFAULT_I_OFFSET	(0.0)   	/* default current offset A */
 #define DEFAULT_V_OFFSET	(0.0)   	/* default voltage offset in V */
@@ -62,6 +63,10 @@
 #define CHG			(-1)
 #define REST			(0)
 #define DSG			(1)
+
+#define DEFAULT_EA_R0	        (-20.0)   	/* should be (-) */
+#define DEFAULT_EA_R1		(-20.0)   	/* should be (-) */
+#define DEFAULT_EA_C1		(20.0)   	/* should be (+) */
 
 
 /*!
