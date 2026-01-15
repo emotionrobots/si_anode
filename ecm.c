@@ -118,12 +118,13 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    /* Dynamic state defaults */
    ecm->soc = ecm->params->soc_tbl[SOC_GRIDS-1];
    ecm->V_oc = ecm->params->ocv_tbl[SOC_GRIDS-1];
+   ecm->V_rc = 0.0;
    ecm->V_batt = ecm->V_oc;
+   ecm->prev_V_batt = ecm->V_batt;
    ecm->prev_V_rc = ecm->V_rc;
    ecm->prev_I = 0.0;
    ecm->I = ecm->prev_I;
    ecm->T_C = T0_C;
-   ecm->V_rc = 0.0;
 
    /* Hysteresis */
    ecm->H = ecm->params->h_dsg_tbl[SOC_GRIDS-1];;

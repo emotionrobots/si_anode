@@ -170,6 +170,8 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    fgic->ecm = (ecm_t *)malloc(sizeof(ecm_t));
    if (ecm_init(fgic->ecm, p, T0_C) != 0) goto _err_ret;
    // fgic->ecm->soc = 0.5;  // set wrong initially
+   
+   fgic->ecm->prev_V_batt = fgic->ecm->V_batt;
    fgic->ecm->prev_V_rc = fgic->ecm->V_rc;
    fgic->ecm->prev_I = fgic->ecm->I;
 
@@ -368,45 +370,45 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    else
       ecm->chg_state = REST;
 
-#if 0
+
    //-----------------------------------------------------------------------------
    //  Perform model learning/update to track H, R0, R1, C1
    //-----------------------------------------------------------------------------
   
    /* Collect data if at REST */
-   if (ecm->chg_state == REST)
+   if (ecm->chg_state == REST )
    {
       double R0_est=0, C1_est=0; 
       double R0_ref=0, C1_ref=0; 
       double ratio;
 
       /* estimate R0 from initial dV from CHG->REST or DSG->REST by R0 = dV/dI */
-      if (ecm->prev_chg_state != REST) && (ecm->I < 0) && (fabs(ecm->I) < ecm->I_quit) 
+      if (ecm->prev_chg_state != REST) 
       {
-         double dV = fabs(ecm->V_rc - fgic->ecm->prev_V_rc);
-         double dI = fabs(ecm->I - fgic->ecm->prev_I);
+         double dV_batt = ecm->V_batt - fgic->ecm->prev_V_batt;
+         double dV_rc = ecm->V_rc - fgic->ecm->prev_V_rc;
+         double dI = ecm->I - fgic->ecm->prev_I;
 
-	 if (dV > fgic->dV_max) fgic->dV_max = dV;
-	 if (dV < fgic->dV_min) fgic->dV_min = dV;
+	 if (fabs(dV_batt) > fgic->dV_max) fgic->dV_max = fabs(dV_batt);
+	 if (fabs(dV_batt) < fgic->dV_min) fgic->dV_min = fabs(dV_batt);
 
-	 if (dI > fgic->dI_max) fgic->dI_max = dI;
-	 if (dI < fgic->dI_min) fgic->dI_min = dI;
+	 if (fabs(dI) > fgic->dI_max) fgic->dI_max = fabs(dI);
+	 if (fabs(dI) < fgic->dI_min) fgic->dI_min = fabs(dI);
 
-         if ((dI > ecm->I_quit) && (dV > ecm->I_quit*ecm->R0))
+         if (fabs(dI) > ecm->I_quit)
 	 {
 	    /* temperature unadjust R0 to T_ref_C */
-            R0_est = fabs(dV/dI);
-//	    ecm->R0 = R0_est;
+	    R0_est = -(dV_rc+dV_batt)/dI;
 	    R0_est = util_temp_unadj(R0_est, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
             ecm_lookup_r0(ecm, ecm->soc, &R0_ref);
             ratio = R0_est / R0_ref;
             for (int k=0; k<SOC_GRIDS; k++)
                ecm->params->r0_tbl[k] *= ratio; 
-
+            ecm_lookup_r0(ecm, ecm->soc, &ecm->R0);
+	    ecm->R0 = util_temp_adj(ecm->R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
 	    /* clear vrc_buf */
             fgic->buf_len = 0; 
 	    fgic->learning = true;
-	    printf("t=%lf\tlearning -> true\n", t);
 	 }
       }
 
@@ -450,12 +452,12 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
       } /* end if (fgic->learning)  */
 #endif
    }
-   else   /* not resting */
+   else   /* if not resting no learning */
    {
       fgic->buf_len = 0; 
       fgic->learning = false;
-   } // if (ecm->chg_state == REST)
-#endif
+   } 
+
 
    /* check if fgic->rest_time needs to reset */
    if (ecm->chg_state != REST )
@@ -467,6 +469,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    //-----------------------------------------------------------------------------
    //  Update charging state 
    //-----------------------------------------------------------------------------
+   fgic->ecm->prev_V_batt = ecm->V_batt;
    fgic->ecm->prev_V_rc = ecm->V_rc;
    fgic->ecm->prev_I = ecm->I;
 

@@ -34,6 +34,7 @@ typedef struct
    double T_amb_C;				/* ambient temp C */
    double I;					/* ECM current */
    double prev_I;				/* previous current */
+   double prev_V_batt;				/* previous Vrc voltage */
    double prev_V_rc;				/* previous Vrc voltage */
 
    /* Arrhenius activation energies (J/mol) for R0, R1, C1 */

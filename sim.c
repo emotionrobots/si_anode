@@ -200,9 +200,9 @@ int params_init(sim_t *sim)
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->fgic->ecm->V_batt;
 
-   sim->params[i].name = "V_prev_rc_fgic";
+   sim->params[i].name = "V_prev_batt_fgic";
    sim->params[i].type = "%lf";
-   sim->params[i++].value= &sim->fgic->ecm->prev_V_rc;
+   sim->params[i++].value= &sim->fgic->ecm->prev_V_batt;
 
    sim->params[i].name = "I_fgic";
    sim->params[i].type = "%lf";
