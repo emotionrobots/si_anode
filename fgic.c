@@ -382,13 +382,13 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
       double R0_ref=0, C1_ref=0; 
       double ratio;
 
+      double dV_batt = ecm->V_batt - fgic->ecm->prev_V_batt;
+      double dV_rc = ecm->V_rc - fgic->ecm->prev_V_rc;
+      double dI = ecm->I - fgic->ecm->prev_I;
+
       /* estimate R0 from initial dV from CHG->REST or DSG->REST by R0 = dV/dI */
       if (ecm->prev_chg_state != REST) 
       {
-         double dV_batt = ecm->V_batt - fgic->ecm->prev_V_batt;
-         double dV_rc = ecm->V_rc - fgic->ecm->prev_V_rc;
-         double dI = ecm->I - fgic->ecm->prev_I;
-
 	 if (fabs(dV_batt) > fgic->dV_max) fgic->dV_max = fabs(dV_batt);
 	 if (fabs(dV_batt) < fgic->dV_min) fgic->dV_min = fabs(dV_batt);
 
@@ -412,14 +412,14 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 	 }
       }
 
-#if 0
+#if 1
       if (fgic->learning) 
       {
 	 /* record VRC data if not full and dI and dV are large enough */ 
          if (fgic->buf_len < VRC_BUF_SZ)
 	 {
 	    fgic->vrc_x[fgic->buf_len] = ecm->V_rc;
-	    fgic->vrc_y[fgic->buf_len] = (ecm->V_rc - ecm->prev_V_rc)/dt;
+	    fgic->vrc_y[fgic->buf_len] = dV_rc/dt;
 	    fgic->buf_len++;
          }
          else 					/* is full and learning, learn the parameters */ 
@@ -431,11 +431,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
                printf("error: linfit: %s\n", linfit_status_str(s));
 	       goto _err_ret; 
 	    }
-
 	    C1_est = -1.0/(r.slope*ecm->R1);
-	    C1_est = util_temp_unadj(C1_est, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
-            ecm_lookup_c1(ecm, ecm->soc, &C1_ref);
-            ratio = C1_est / C1_ref;
 
 	    /* update C1 table */
 	    C1_est = util_temp_unadj(C1_est, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
@@ -447,7 +443,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 
 	    fgic->buf_len = 0;
 	    fgic->learning = false;
-	    printf("t=%lf\tlearned.  C1_est=%lf,  C1_ref=%lf ratio=%lf\n", t, C1_est, C1_ref, ratio);
+	    printf("t=%lf\tlearned.  C1_fgic=%lf,  C1_batt=%lf\n", t, ecm->C1, fgic->batt->ecm->C1);
          }
       } /* end if (fgic->learning)  */
 #endif
