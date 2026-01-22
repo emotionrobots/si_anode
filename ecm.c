@@ -56,33 +56,6 @@ int tbl_interp(const double *grid, const double *tbl, int n, double soc, double 
 }
 
 
-/*! 
- *--------------------------------------------------------------------------------------------------------------------- 
- *
- * @fn		int nearest_soc_idx(const double *grid, int n, double soc)
- *
- * @brief	Find nearest SOC bin index. 
- *
- *--------------------------------------------------------------------------------------------------------------------- 
- */
-static 
-int nearest_soc_idx(const double *grid, int n, double soc)
-{
-    soc = util_clamp(soc, grid[0], grid[n - 1]);
-    int best = 0;
-    double best_err = fabs(soc - grid[0]);
-    for (int i = 1; i < n; ++i) 
-    {
-        double e = fabs(soc - grid[i]);
-        if (e < best_err) 
-	{
-            best_err = e;
-            best = i;
-        }
-    }
-    return best;
-}
-
 
 /*! 
  *--------------------------------------------------------------------------------------------------------------------- 
@@ -127,8 +100,7 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    ecm->T_C = T0_C;
 
    /* Hysteresis */
-   ecm->H = ecm->params->h_dsg_tbl[SOC_GRIDS-1];;
-   ecm->ah = ALPHA_H;
+   ecm->H = ecm->params->h_dsg_tbl[SOC_GRIDS-1];
 
    /* R0, R1, C1 */
    ecm_lookup_r0(ecm, ecm->soc, &ecm->R0);
@@ -190,19 +162,18 @@ int ecm_lookup_ocv(const ecm_t *ecm, double soc, double *val)
 int ecm_lookup_h(const ecm_t *ecm, double soc, double *val)
 {
     int rc=0;
-    double alpha = ecm->ah; 
     double H=0;
     flash_params_t *params = ecm->params;
 
     if (ecm->chg_state==CHG)
     {
        rc = tbl_interp(params->soc_tbl, params->h_chg_tbl, SOC_GRIDS, soc, &H);
-       *val = alpha*ecm->H + (1.0-alpha)*H;
+       *val = H;
     }
     else if (ecm->chg_state==DSG) 
     {
        rc = tbl_interp(params->soc_tbl, params->h_dsg_tbl, SOC_GRIDS, soc, &H);
-       *val = alpha*ecm->H + (1.0-alpha)*H;
+       *val = H;
     }
     else
        *val = ecm->H;   // no change

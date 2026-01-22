@@ -115,7 +115,6 @@ void fgic_hx(const double *x, double *z, void *p_usr)
    R0 = util_temp_adj(R0, ecm->Ea_R0, T_C, ecm->params->T_ref_C);   
 
    /* compute V_term and T_C */ 
-   // z[0] = (V_oc + H) - V_rc - ecm->I * R0;
    z[0] = (V_oc + H) - V_rc - ecm->I * R0;
    z[1] = T_C;
 }
@@ -164,6 +163,9 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    fgic->dV_min = 1e6;
    fgic->dI_max = 0;
    fgic->dI_min = 1e6;
+   fgic->ah = ALPHA_H;
+   fgic->I_sum = 0.0;
+
 
    fgic->batt = batt;
 
@@ -293,9 +295,9 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 
 
    /* measure battery I, T, V with noise */
-   fgic->I_meas = fgic->batt->ecm->I + fgic->I_noise * ((double)rand()/(double)RAND_MAX-0.5);
-   fgic->T_meas = fgic->batt->ecm->T_C + fgic->T_noise * ((double)rand()/(double)RAND_MAX-0.5);
-   fgic->V_meas = fgic->batt->ecm->V_batt + fgic->V_noise * ((double)rand()/(double)RAND_MAX-0.5);
+   fgic->I_meas = fgic->batt->ecm->I + fgic->I_noise * ((double)rand()/(double)RAND_MAX-0.5) + fgic->I_offset;
+   fgic->T_meas = fgic->batt->ecm->T_C + fgic->T_noise * ((double)rand()/(double)RAND_MAX-0.5) + fgic->T_offset;
+   fgic->V_meas = fgic->batt->ecm->V_batt + fgic->V_noise * ((double)rand()/(double)RAND_MAX-0.5) + fgic->V_offset;
 
    ecm->I = fgic->I_meas;
    ecm->T_amb_C = T_amb_C;
@@ -330,7 +332,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    ecm->T_C  = fgic->ukf->x[2];
 
 
-   /* update R0, R1, C1 */
+   /* update default R0, R1, C1 */
    double R0, R1, C1;
    ecm_lookup_r0(ecm, soc, &R0);
    ecm->R0 = util_temp_adj(R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
@@ -340,29 +342,8 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    ecm->C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
 
 
-   /* update H */
-   ecm_lookup_h(ecm, soc, &ecm->H);
-
-
-   /* update V_oc */
-   fgic->V_oc_est = ecm->V_batt - ecm->H + ecm->V_rc + ecm->I*ecm->R0;
-
-
-   /* update soc based on OCV lookup if rest time long enough */
-   if (fgic->rest_time >= fgic->min_rest) 
-   {
-      ecm->soc = soc_from_ocv_best(fgic->V_oc_est, soc, ecm->chg_state, ecm->params);
-   }
-   else
-   {
-      ecm->soc = soc;
-   }
-
-   ecm_lookup_ocv(ecm, ecm->soc, &ecm->V_oc);
-
+   /* update chg state */
    ecm->prev_chg_state = ecm->chg_state;
-
-   /* update chg state -- must be before update H */
    if (ecm->I > ecm->I_quit)
       ecm->chg_state = DSG;
    else if (ecm->I < -ecm->I_quit)
@@ -371,11 +352,9 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
       ecm->chg_state = REST;
 
 
-   //-----------------------------------------------------------------------------
-   //  Perform model learning/update to track H, R0, R1, C1
-   //-----------------------------------------------------------------------------
-  
-   /* Collect data if at REST */
+   /*
+    *  Opportunistically learn R0, R1, C1
+    */
    if (ecm->chg_state == REST )
    {
       double R0_est=0, C1_est=0; 
@@ -386,7 +365,10 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
       double dV_rc = ecm->V_rc - fgic->ecm->prev_V_rc;
       double dI = ecm->I - fgic->ecm->prev_I;
 
-      /* estimate R0 from initial dV from CHG->REST or DSG->REST by R0 = dV/dI */
+
+      /* 
+       * Estimate R0 from initial dV from CHG->REST or DSG->REST by R0 = dV/dI 
+       */
       if (ecm->prev_chg_state != REST) 
       {
 	 if (fabs(dV_batt) > fgic->dV_max) fgic->dV_max = fabs(dV_batt);
@@ -397,22 +379,27 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 
          if (fabs(dI) > ecm->I_quit)
 	 {
-	    /* temperature unadjust R0 to T_ref_C */
+	    /* adjust R0 to T_ref_C for proper table update */
 	    R0_est = -(dV_rc+dV_batt)/dI;
 	    R0_est = util_temp_unadj(R0_est, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
             ecm_lookup_r0(ecm, ecm->soc, &R0_ref);
             ratio = R0_est / R0_ref;
             for (int k=0; k<SOC_GRIDS; k++)
                ecm->params->r0_tbl[k] *= ratio; 
+
+	    /* re-read R0 and adjust it to current temp */
             ecm_lookup_r0(ecm, ecm->soc, &ecm->R0);
 	    ecm->R0 = util_temp_adj(ecm->R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
+
 	    /* clear vrc_buf */
             fgic->buf_len = 0; 
 	    fgic->learning = true;
 	 }
       }
 
-#if 1
+      /* 
+       * Estimate Tau 
+       */
       if (fgic->learning) 
       {
 	 /* record VRC data if not full and dI and dV are large enough */ 
@@ -422,7 +409,8 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 	    fgic->vrc_y[fgic->buf_len] = dV_rc/dt;
 	    fgic->buf_len++;
          }
-         else 					/* is full and learning, learn the parameters */ 
+	 /* is full and learning, learn the parameters */ 
+         else 					
          {
             linfit_result_t r;
             linfit_status_t s = linfit_ols(fgic->vrc_x, fgic->vrc_y, fgic->buf_len, &r);
@@ -439,32 +427,66 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
             ratio = C1_est / C1_ref;
             for (int k=0; k<SOC_GRIDS; k++)
                ecm->params->c1_tbl[k] *= ratio; 
-            ecm_lookup_c1(ecm, ecm->soc, &ecm->C1);
+
+	    /* re-read C1 and adjust it to current temp */
+            ecm_lookup_c1(ecm, ecm->soc, &C1_est);
+	    ecm->C1 = util_temp_adj(C1_est, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
 
 	    fgic->buf_len = 0;
 	    fgic->learning = false;
 	    printf("t=%lf\tlearned.  C1_fgic=%lf,  C1_batt=%lf\n", t, ecm->C1, fgic->batt->ecm->C1);
          }
       } /* end if (fgic->learning)  */
-#endif
    }
-   else   /* if not resting no learning */
+   /* if not resting no learning */
+   else   
    {
       fgic->buf_len = 0; 
       fgic->learning = false;
    } 
 
 
+   /* lookup V_oc given SOC */
+   ecm_lookup_ocv(ecm, soc, &ecm->V_oc);
+ 
+
+   /* update H if rest time long enough */
+   if (ecm->chg_state == REST && fgic->rest_time >= fgic->min_rest)
+   {
+      double I_avg = fgic->I_sum*dt/fgic->min_rest;
+      fgic->V_oc_est = ecm->V_batt + ecm->V_rc + I_avg*ecm->R0;
+      double H_meas = fgic->V_oc_est - ecm->V_oc;
+
+      if (ecm->prev_chg_state == CHG) 
+         util_update_h_tbl(ecm->params->h_chg_tbl, ecm->params->soc_tbl, SOC_GRIDS, ecm->soc, H_meas);
+      else if (ecm->prev_chg_state == DSG)
+         util_update_h_tbl(ecm->params->h_dsg_tbl, ecm->params->soc_tbl, SOC_GRIDS, ecm->soc, H_meas);
+
+      printf("rest-time reached: t=%lf, H_meas=%lf, I_sum=%lf, I_avg=%lf\n", t, H_meas, fgic->I_sum, I_avg);
+   }
+
+
+   /* read updated H */
+   ecm_lookup_h(ecm, soc, &ecm->H);
+
+
+   /* official update SOC */
+   ecm->soc = soc;
+
+
    /* check if fgic->rest_time needs to reset */
    if (ecm->chg_state != REST )
+   {
       fgic->rest_time = 0.0;
+      fgic->I_sum = 0.0;
+   }
    else if (fgic->rest_time < fgic->min_rest)
+   {
+      fgic->I_sum += ecm->I;
       fgic->rest_time += dt;
+   }
 
-
-   //-----------------------------------------------------------------------------
-   //  Update charging state 
-   //-----------------------------------------------------------------------------
+   /* update charging state */
    fgic->ecm->prev_V_batt = ecm->V_batt;
    fgic->ecm->prev_V_rc = ecm->V_rc;
    fgic->ecm->prev_I = ecm->I;

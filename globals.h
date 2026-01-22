@@ -36,13 +36,23 @@
 #define MAX_PLOT_PTS		(200000)	/* max number of string-enabled parameters */
 #define DEFAULT_H_CHG		(0.02)		/* default OCV chg hysteresis */
 #define DEFAULT_H_DSG		(-0.02)		/* default OCV dsg hysteresis */
-#define H_DSG_TBL		NMC_H_DSG_TBL	/* H_DSG table */
-#define H_CHG_TBL		NMC_H_CHG_TBL	/* H_CHG table */
+
+#define BATT_H_DSG_TBL		NMC_H_DSG_TBL	/* H_DSG table */
+#define BATT_H_CHG_TBL		NMC_H_CHG_TBL	/* H_CHG table */
+
+#if 0
+#define FGIC_H_DSG_TBL		ZERO_H_DSG_TBL	/* H_DSG table */
+#define FGIC_H_CHG_TBL		ZERO_H_CHG_TBL	/* H_CHG table */
+#else
+#define FGIC_H_DSG_TBL		NMC_H_DSG_TBL	/* H_DSG table */
+#define FGIC_H_CHG_TBL		NMC_H_CHG_TBL	/* H_CHG table */
+#endif
+
 #define OCV_TBL			NMC_OCV_TBL	/* OCV table */
 #define R0_TBL			NMC_R0_TBL	/* R0 table */
 #define R1_TBL			NMC_R1_TBL	/* R1 table */
 #define C1_TBL			NMC_C1_TBL	/* C1 table */
-#define ALPHA_H			(0.05)		/* OCV hysteresis transient dynamics */
+#define ALPHA_H			(0.5)		/* OCV hysteresis transient dynamics */
 
 #define Q_DESIGN		(4.0)		/* 4 Ah */
 #define DEFAULT_SYS_LOAD	SYS_LOAD_CC	/* default system load type */
@@ -50,21 +60,23 @@
 #define HEAT_CAPACITY		(200.0)      	/* heat capacity J/°C */
 #define HEAT_TRANS_COEF		(0.10)       	/* heat transfer coef W/°C */
 
-#if 0
-#define DEFAULT_I_NOISE		(1.0e-6)   	/* default current noise in A */
-#define DEFAULT_V_NOISE		(1.0e-6)   	/* default voltage noise in V */
+#if 1
+#define DEFAULT_I_NOISE		(1.0e-5)   	/* default current noise in A */
+#define DEFAULT_V_NOISE		(1.0e-3)   	/* default voltage noise in V */
 #define DEFAULT_T_NOISE		(0.25)   	/* default temp noise in deg C */
+#define DEFAULT_I_OFFSET	(1.0e-5)   	/* default current offset A */
+#define DEFAULT_V_OFFSET	(1.0e-5)   	/* default voltage offset in V */
+#define DEFAULT_T_OFFSET	(0.10)   	/* default temp offset in deg C */
 #else
 #define DEFAULT_I_NOISE		(0.0)   	/* default current noise in A */
 #define DEFAULT_V_NOISE		(0.0)   	/* default voltage noise in V */
 #define DEFAULT_T_NOISE		(0.0)   	/* default temp noise in deg C */
-#endif
-
 #define DEFAULT_I_OFFSET	(0.0)   	/* default current offset A */
 #define DEFAULT_V_OFFSET	(0.0)   	/* default voltage offset in V */
 #define DEFAULT_T_OFFSET	(0.0)   	/* default temp offset in deg C */
+#endif
 
-#define MIN_REST_TIME		(6.0*3600.0)	/* 6 hrs in seconds */
+#define MIN_REST_TIME		(6.0*3600.0)	/* 3 hrs in seconds */
 
 #define CHG			(-1)
 #define REST			(0)

@@ -120,3 +120,66 @@ double util_temp_unadj(double k_val, double Ea, double T_C, double Tref_C)
     return k_val * factor;
 }
 
+#if 0
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ * @fn          int util_nearest_soc_idx(const double *grid, int n, double soc)
+ *
+ * @brief       Find nearest SOC bin index.
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+int util_nearest_soc_idx(const double *grid, int n, double soc)
+{
+    soc = util_clamp(soc, grid[0], grid[n - 1]);
+    int best = 0;
+    double best_err = fabs(soc - grid[0]);
+    for (int i = 1; i < n; ++i)
+    {
+        double e = fabs(soc - grid[i]);
+        if (e < best_err)
+        {
+            best_err = e;
+            best = i;
+        }
+    }
+    return best;
+}
+#endif
+
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn		int util_update_h_tbl(double *tbl, int n, double soc, double H)
+ *
+ *  @brief	Update H table entry indexed by SOC.  
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+int util_update_h_tbl(double *h_tbl, double *soc_tbl, int n, double soc, double H)
+{
+   /* Find bookends indices where soc sits in between */
+   int left = 0;
+   for (int i=0; i < n; i++)
+      if (soc >= soc_tbl[i]) left = i; 
+
+   int right = left;
+   for (int k=n-1; k >= left; k--)
+      if (soc <= soc_tbl[k]) right = k; 
+
+   /* 
+    * Update table. Closer soc is to the indexed entry, higher 
+    * the influence H has on that entry's new value 
+    */
+   double alpha = soc-soc_tbl[left];
+   h_tbl[left] = (1.0-alpha)*H + alpha*h_tbl[left];
+
+   double beta = soc_tbl[right]-soc;
+   h_tbl[right] = (1.0-beta)*H + beta*h_tbl[right];
+
+   return 0;
+}
+
+

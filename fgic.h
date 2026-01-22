@@ -54,6 +54,8 @@ typedef struct {
    double dV_max;			// max dV 
    double dV_min;			// min dV
    double V_oc_est;			// V_oc estimate from CCV 
+   double ah;                           // hysteresis decay rate 
+   double I_sum;                        // REST current sum 
 }
 fgic_t;
 
