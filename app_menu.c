@@ -735,13 +735,25 @@ int f_run_until(struct _menu *m, int argc, char **argv, void *p_usr)
 static
 int f_run_another(struct _menu *m, int argc, char **argv, void *p_usr)
 {
-   (void)m;
-   (void)argc;
-   (void)argv;
-   (void)p_usr;
+   int rc = -1;
+   char *endptr;
 
-   printf("f_run_another called\n");
-   return 0;
+   if (m==NULL || p_usr==NULL || argv==NULL) return -1;
+   sim_t *sim = (sim_t *)p_usr;
+
+   if (argc != 2) return -2;
+
+   errno = 0;
+   double t_more = strtod(argv[1], &endptr);
+   if (argv[1]!=endptr && errno==0)
+   {
+      LOCK(&sim->mtx);
+      sim->t_end = sim->t + t_more;
+      UNLOCK(&sim->mtx);
+
+      rc = sim_run_start(sim);
+   }
+   return rc;
 }
 
 
