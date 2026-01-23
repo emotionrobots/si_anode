@@ -772,8 +772,6 @@ int f_run_script(struct _menu *m, int argc, char **argv, void *p_usr)
    memset(sim->script_fn, 0, FN_LEN);
    strcpy(sim->script_fn, argv[1]);
 
-   printf("Opening script %s\n", sim->script_fn);
-
    FILE *fp = fopen(sim->script_fn, "r");
    if (fp == NULL) return -3;
 
@@ -804,6 +802,10 @@ int f_run_script(struct _menu *m, int argc, char **argv, void *p_usr)
 
          menu_process(sim->m_root, xargc, xargv, (void *)sim);
 
+	 /* 
+	  * Make sure the previous command is completed
+	  * by checking sim->pause 
+	  */
 	 bool pause = false;
 	 while (!pause)
          {
@@ -819,6 +821,7 @@ int f_run_script(struct _menu *m, int argc, char **argv, void *p_usr)
       }
    }
 
+   fclose(fp);
    return 0;
 }
 
