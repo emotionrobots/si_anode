@@ -146,6 +146,120 @@ int set_params(sim_t *sim, char *name, char *value)
    return rc;
 }
 
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn         int get_params(sim_t *sim, char *name, void *value)
+ *
+ *  @brief      Set parameter helper function
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static
+int get_params(sim_t *sim, char *name, void *value)
+{
+   int rc = -1;
+
+   LOCK(&sim->mtx);
+   for (int i=0; i < sim->params_sz; i++)
+   {
+       if (0==strcmp(sim->params[i].name, name))
+       {
+          if (0==strcmp(sim->params[i].type, "%b"))
+             *((bool *)value) = *((bool *)sim->params[i].value);
+          else if (0==strcmp(sim->params[i].type, "%d"))
+             *((int *)value) = *((int *)sim->params[i].value);
+          else if (0==strcmp(sim->params[i].type, "%ld"))
+             *((long *)value) = *((long *)sim->params[i].value);
+          else if (0==strcmp(sim->params[i].type, "%f"))
+             *((float *)value) = *((float *)sim->params[i].value);
+          else if (0==strcmp(sim->params[i].type, "%lf"))
+             *((double *)value) = *((double *)sim->params[i].value);
+          else
+             strcpy(value, (char *)sim->params[i].value);
+          rc = 0;
+          break;
+       }
+   }
+   UNLOCK(&sim->mtx);
+
+   return rc;
+}
+
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn		char* get_params_type(sim_t *sim, char *name)
+ *
+ *  @brief      Get parameter type 
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static
+char* get_params_type(sim_t *sim, char *name)
+{
+   char *ptype = NULL;
+
+   LOCK(&sim->mtx);
+   for (int i=0; i < sim->params_sz; i++)
+   {
+       if (0==strcmp(sim->params[i].name, name))
+       {
+          ptype = sim->params[i].type;
+          break;
+       }
+   }
+   UNLOCK(&sim->mtx);
+
+   return ptype;
+}
+
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn         int check_cond(sim_t *sim, bool *res, char *lop, char *param, char *compare, double value)
+ *
+ *  @brief      Check condition
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static
+int check_cond(sim_t *sim, bool *res, char *lop, char *param, char *compare, double value)
+{
+   double pval = 0;
+   char *ptype = get_params_type(sim, param);
+   if (ptype == NULL || (0 != strcmp(ptype, "%lf"))) return -1;
+   get_params(sim, param, &pval);
+
+   /* COND */
+   bool cond = false;
+   if (0==strcmp(compare, ">"))
+      cond = (pval > value);
+   else if (0==strcmp(compare, ">="))
+      cond = (pval >= value);
+   else if (0==strcmp(compare, "<"))
+      cond = (pval < value);
+   else if (0==strcmp(compare, "<="))
+      cond = (pval <= value);
+   else
+      return -2;
+
+   /* LOP */
+   if (lop == NULL)
+      *res = cond;
+   else if (0==strcmp(lop, "&&"))
+      *res = *res && cond;
+   else if (0==strcmp(lop, "||"))
+      *res = *res || cond;
+   else
+      return -3;
+
+   return 0;
+}
+
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
@@ -705,19 +819,48 @@ _err_ret:
  *
  *  @fn		int f_run_until(struct _menu *m, int argc, char **argv, void *p_usr)
  *
- *  @brief	Run until voltage or time reached
+ *  @brief	Run until t, V, T or soc condition is reached
+ *
+ *  @note	run until <t | v | T | soc> <op> <value> 
  *
  *---------------------------------------------------------------------------------------------------------------------
  */
 static
 int f_run_until(struct _menu *m, int argc, char **argv, void *p_usr)
 {
-   (void)m;
-   (void)argc;
-   (void)argv;
-   (void)p_usr;
+   char *endptr;
+   bool res;
 
-   printf("f_run_until called\n");
+   if (m==NULL || p_usr==NULL || argv==NULL) return -1;
+   sim_t *sim = (sim_t *)p_usr;
+
+   int xargc = argc-1;
+   if (xargc < 3) return -2;
+
+   int i=0;
+   int remain = xargc;
+
+   if (!util_is_numeric(argv[i+3])) return -3;
+   char *lop = NULL;
+   char *param = argv[i+1];
+   char *comparator = argv[i+2];
+   double value = strtod(argv[i+3], &endptr);
+   if (0 != check_cond(sim, &res, lop, param, comparator, value)) return -4;
+   remain -= 3;
+
+   while (remain >= 4) 
+   {
+      lop = argv[i+4];
+      i+=4;
+      if (!util_is_numeric(argv[i+3])) return -3;
+      param = argv[i+1];
+      comparator = argv[i+2];
+      value = strtod(argv[i+3], &endptr);
+      if (0 != check_cond(sim, &res, lop, param, comparator, value)) return -4;
+      remain -= 4; 
+   }
+
+   if (remain != 0) return -5; 
    return 0;
 }
 
@@ -775,11 +918,7 @@ int f_run_script(struct _menu *m, int argc, char **argv, void *p_usr)
 
    sim_t *sim = (sim_t *)p_usr;
 
-   if (argc != 2)
-   {
-      printf("%s:\t%s (usage:%s)\n", m->name, m->desc, m->help);
-      return -2;
-   }
+   if (argc != 2) return -2;
 
    memset(sim->script_fn, 0, FN_LEN);
    strcpy(sim->script_fn, argv[1]);

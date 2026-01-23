@@ -353,9 +353,12 @@ bool sim_check_pause(sim_t *sim)
    bool do_pause = false;
    batt_t *batt = sim->batt;
 
+   /* time-based conditions */
+   if (sim->t >= sim->t_end) do_pause = true;
+
+   /* automatic pause conditions */
    if (batt->ecm->chg_state==CHG && batt->ecm->soc >= 1.0f) do_pause = true;
    if (batt->ecm->chg_state==DSG && batt->ecm->soc <= 0.0f) do_pause = true;
-   if (sim->t >= sim->t_end) do_pause = true;
 
    return do_pause;
 }
