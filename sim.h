@@ -22,6 +22,7 @@
 #include "fgic.h"
 #include "system.h"
 #include "itimer.h"
+#include "menu.h"
 
 
 typedef struct {
@@ -51,6 +52,9 @@ typedef struct {
    double t_end;		/* simulation t end */
    double v_batt_noise;		/* V_batt noise */
    double T_amb_C;		/* Environment temperature */
+
+   char script_fn[FN_LEN]; 	/* script filename */
+   menu_t *m_root;		/* root menu */
 }
 sim_t;
 

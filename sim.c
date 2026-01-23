@@ -508,9 +508,11 @@ sim_t *sim_create(double t0, double dt, double temp0)
    if (sim == NULL) return NULL;
 
    sim->logfp = NULL;
-   memset(sim->logfn, 0, sizeof(sim->logfn));
-   memset(sim->logi, 0, sizeof(sim->logi));
+   memset(sim->logfn, 0, FN_LEN);
+   memset(sim->script_fn, 0, FN_LEN);
+   memset(sim->logi, 0, MAX_PARAMS*sizeof(int));
    sim->logn = 0;
+   sim->m_root = NULL;
 
    /* init scope_plot */
    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) 

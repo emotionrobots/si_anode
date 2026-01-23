@@ -46,7 +46,7 @@ int main()
    srand(time(NULL));
 
    sim_t *sim = sim_create(0.0, DT, TEMP_0);
-   menu_t *m_root = app_menu_init(sim);
+   sim->m_root = app_menu_init(sim);
 
    while (!done)
    {
@@ -67,7 +67,7 @@ int main()
             token = strtok(NULL, delim);
 	 }
 
-         menu_process(m_root, argc, argv, (void *)sim);
+         menu_process(sim->m_root, argc, argv, (void *)sim);
       }
       else
       {
@@ -76,7 +76,7 @@ int main()
    }
 
 _quit:
-   if (m_root != NULL) free(m_root);
+   if (sim->m_root != NULL) free(sim->m_root);
    if (sim != NULL) sim_destroy(sim);
 
    return 0;

@@ -136,7 +136,6 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    if (batt==NULL || p==NULL) return NULL;
 
    fgic_t *fgic = calloc(1, sizeof(fgic_t));
-
    if (fgic==NULL) goto _err_ret;
 	  
    for (int i=0; i<VRC_BUF_SZ; i++) 
@@ -165,10 +164,10 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    fgic->dI_min = 1e6;
    fgic->ah = ALPHA_H;
    fgic->I_sum = 0.0;
-
+   fgic->h_tbl_to_update = DSG;
 
    fgic->batt = batt;
-
+   
    fgic->ecm = (ecm_t *)malloc(sizeof(ecm_t));
    if (ecm_init(fgic->ecm, p, T0_C) != 0) goto _err_ret;
    // fgic->ecm->soc = 0.5;  // set wrong initially
@@ -178,6 +177,7 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    fgic->ecm->prev_I = fgic->ecm->I;
 
    ecm_lookup_ocv(fgic->ecm, fgic->ecm->soc, &fgic->V_oc_est);
+   ecm_lookup_ocv(fgic->ecm, fgic->ecm->soc, &fgic->ecm->V_oc);
 
    fgic->I_meas = batt->ecm->I + fgic->I_noise * ((double)rand()/(double)RAND_MAX-0.5);
    fgic->T_meas = batt->ecm->T_C + fgic->T_noise * ((double)rand()/(double)RAND_MAX-0.5);
@@ -304,6 +304,25 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    ecm->V_batt = fgic->V_meas;
 
 
+   /* update chg state */
+   ecm->prev_chg_state = ecm->chg_state;
+   if (ecm->I > ecm->I_quit)
+   {
+      ecm->chg_state = DSG;
+      fgic->h_tbl_to_update = DSG;
+   }
+   else if (ecm->I < -ecm->I_quit)
+   {
+      ecm->chg_state = CHG;
+      fgic->h_tbl_to_update = CHG;
+   }
+   else
+   {
+      ecm->chg_state = REST;
+   }
+
+
+   /* update UKF */
    double z_meas[2];
    z_meas[0] = fgic->V_meas;
    z_meas[1] = fgic->T_meas;
@@ -311,8 +330,6 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    double u[2];
    u[0] = ecm->I;
    u[1] = T_amb_C;
-
-
 
    /* Predict x given u */
    if (ukf_predict(fgic->ukf, u, dt, (void *)fgic) != UKF_OK) goto _err_ret;
@@ -342,14 +359,24 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    ecm->C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
 
 
+#if 0
    /* update chg state */
    ecm->prev_chg_state = ecm->chg_state;
    if (ecm->I > ecm->I_quit)
+   {
       ecm->chg_state = DSG;
+      fgic->h_tbl_to_update = DSG;
+   }
    else if (ecm->I < -ecm->I_quit)
+   {
       ecm->chg_state = CHG;
+      fgic->h_tbl_to_update = CHG;
+   }
    else
+   {
       ecm->chg_state = REST;
+   }
+#endif
 
 
    /*
@@ -382,13 +409,13 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 	    /* adjust R0 to T_ref_C for proper table update */
 	    R0_est = -(dV_rc+dV_batt)/dI;
 	    R0_est = util_temp_unadj(R0_est, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
-            ecm_lookup_r0(ecm, ecm->soc, &R0_ref);
+            ecm_lookup_r0(ecm, soc, &R0_ref);
             ratio = R0_est / R0_ref;
             for (int k=0; k<SOC_GRIDS; k++)
                ecm->params->r0_tbl[k] *= ratio; 
 
 	    /* re-read R0 and adjust it to current temp */
-            ecm_lookup_r0(ecm, ecm->soc, &ecm->R0);
+            ecm_lookup_r0(ecm, soc, &ecm->R0);
 	    ecm->R0 = util_temp_adj(ecm->R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
 
 	    /* clear vrc_buf */
@@ -423,13 +450,13 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 
 	    /* update C1 table */
 	    C1_est = util_temp_unadj(C1_est, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
-            ecm_lookup_c1(ecm, ecm->soc, &C1_ref);
+            ecm_lookup_c1(ecm, soc, &C1_ref);
             ratio = C1_est / C1_ref;
             for (int k=0; k<SOC_GRIDS; k++)
                ecm->params->c1_tbl[k] *= ratio; 
 
 	    /* re-read C1 and adjust it to current temp */
-            ecm_lookup_c1(ecm, ecm->soc, &C1_est);
+            ecm_lookup_c1(ecm, soc, &C1_est);
 	    ecm->C1 = util_temp_adj(C1_est, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
 
 	    fgic->buf_len = 0;
@@ -454,15 +481,15 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    if (ecm->chg_state == REST && fgic->rest_time >= fgic->min_rest)
    {
       double I_avg = fgic->I_sum*dt/fgic->min_rest;
-      fgic->V_oc_est = ecm->V_batt + ecm->V_rc + I_avg*ecm->R0;
-      double H_meas = fgic->V_oc_est - ecm->V_oc;
+      double H_meas = ecm->V_batt - ecm->V_oc + ecm->V_rc + I_avg*ecm->R0;
 
-      if (ecm->prev_chg_state == CHG) 
-         util_update_h_tbl(ecm->params->h_chg_tbl, ecm->params->soc_tbl, SOC_GRIDS, ecm->soc, H_meas);
-      else if (ecm->prev_chg_state == DSG)
-         util_update_h_tbl(ecm->params->h_dsg_tbl, ecm->params->soc_tbl, SOC_GRIDS, ecm->soc, H_meas);
+      if (fgic->h_tbl_to_update == CHG) 
+         util_update_h_tbl(ecm->params->h_chg_tbl, ecm->params->soc_tbl, SOC_GRIDS, soc, H_meas);
+      else if (fgic->h_tbl_to_update == DSG)
+         util_update_h_tbl(ecm->params->h_dsg_tbl, ecm->params->soc_tbl, SOC_GRIDS, soc, H_meas);
 
-      printf("rest-time reached: t=%lf, H_meas=%lf, I_sum=%lf, I_avg=%lf\n", t, H_meas, fgic->I_sum, I_avg);
+      printf("rest-time reached: t=%lf, H_meas=%lf, I_sum=%lf, I_avg=%lf, tbl=%d\n", 
+		      t, H_meas, fgic->I_sum, I_avg, fgic->h_tbl_to_update);
    }
 
 

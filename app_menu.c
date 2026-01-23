@@ -174,14 +174,14 @@ int f_ls(struct _menu *m, int argc, char **argv, void *p_usr)
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		int f_run(struct _menu *m, int argc, char **argv, void *p_usr)
+ *  @fn		int f_run_to(struct _menu *m, int argc, char **argv, void *p_usr)
  *
  *  @brief	Run command handler
  *
  *---------------------------------------------------------------------------------------------------------------------
  */
 static 
-int f_run(struct _menu *m, int argc, char **argv, void *p_usr)
+int f_run_to(struct _menu *m, int argc, char **argv, void *p_usr)
 {
    int rc = -1;
    char *endptr;
@@ -203,6 +203,7 @@ int f_run(struct _menu *m, int argc, char **argv, void *p_usr)
    }
    return rc;
 }
+
 
 
 /*!
@@ -677,6 +678,15 @@ int f_compare(struct _menu *m, int argc, char **argv, void *p_usr)
 		 k, fgic->ecm->params->h_chg_tbl[k]);
       }
    }
+   else if (0==strcmp(argv[1], "V_oc"))
+   {
+      for (int k=0; k<SOC_GRIDS; k++)
+      {
+         printf("Batt_V_oc[%d]=%lf, FGIC_V_oc[%d]=%lf\n",
+                 k, batt->ecm->params->ocv_tbl[k],
+                 k, fgic->ecm->params->ocv_tbl[k]);
+      }
+   }
    else
    {
       printf("%s:\t%s (usage:%s)\n", m->name, m->desc, m->help);
@@ -690,22 +700,128 @@ _err_ret:
 }
 
 
-
 /*!
  *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn		int f_run_until(struct _menu *m, int argc, char **argv, void *p_usr)
+ *
+ *  @brief	Run until voltage or time reached
+ *
  *---------------------------------------------------------------------------------------------------------------------
  */
-static 
-int f_cd(struct _menu *m, int argc, char **argv, void *p_usr)
+static
+int f_run_until(struct _menu *m, int argc, char **argv, void *p_usr)
 {
    (void)m;
    (void)argc;
    (void)argv;
    (void)p_usr;
 
-   printf("f_cd called\n");
+   printf("f_run_until called\n");
    return 0;
 }
+
+
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn		int f_run_another(struct _menu *m, int argc, char **argv, void *p_usr)
+ *
+ *  @brief	Run another <t> seconds
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static
+int f_run_another(struct _menu *m, int argc, char **argv, void *p_usr)
+{
+   (void)m;
+   (void)argc;
+   (void)argv;
+   (void)p_usr;
+
+   printf("f_run_another called\n");
+   return 0;
+}
+
+
+
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn         int f_run_script(struct _menu *m, int argc, char **argv, void *p_usr)
+ *
+ *  @brief      Run script seconds
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static
+int f_run_script(struct _menu *m, int argc, char **argv, void *p_usr)
+{
+   if (m==NULL || p_usr==NULL || argv==NULL) return -1;
+
+   sim_t *sim = (sim_t *)p_usr;
+
+   if (argc != 2)
+   {
+      printf("%s:\t%s (usage:%s)\n", m->name, m->desc, m->help);
+      return -2;
+   }
+
+   memset(sim->script_fn, 0, FN_LEN);
+   strcpy(sim->script_fn, argv[1]);
+
+   printf("Opening script %s\n", sim->script_fn);
+
+   FILE *fp = fopen(sim->script_fn, "r");
+   if (fp == NULL) return -3;
+
+   /* script line processing loop */
+   bool done = false;
+   char linebuf[MAX_LINE_SZ];
+   int xargc = 0;
+   char *xargv[MAX_TOKENS];
+   const char delim[] = " \n";
+   int line_number = 0; 
+
+   while (!done) 
+   {
+      line_number++;
+      if (fgets(linebuf, sizeof(linebuf), fp) != NULL)
+      {
+         printf("-> %s\n", linebuf); 
+         xargc = 0;
+         memset(xargv, 0, MAX_TOKENS*sizeof(char *));
+         char *token = strtok(linebuf, delim);
+
+         while (token != NULL)
+         {
+            xargv[xargc] = token;
+            xargc++;
+            token = strtok(NULL, delim);
+         }
+
+         menu_process(sim->m_root, xargc, xargv, (void *)sim);
+
+	 bool pause = false;
+	 while (!pause)
+         {
+            LOCK(&sim->mtx);
+            pause = sim->pause;
+            UNLOCK(&sim->mtx);
+            sched_yield();
+         }
+      }
+      else
+      {
+	 done = true; 
+      }
+   }
+
+   return 0;
+}
+
 
 /*!
  *---------------------------------------------------------------------------------------------------------------------
@@ -755,25 +871,45 @@ menu_t *app_menu_init()
 {
    menu_t *m_root = menu_create("ls", "list commands", "ls", "", f_ls);
 
-   menu_t *m_run = menu_create("run", "run simulation for a duration", "run <secs>", "", f_run);
+
+   /* run commands */
+   menu_t *m_run = menu_create("run", "run <to | until | another>", "run <to | until | another>", "", NULL);
    menu_add_peer(m_root, m_run);
 
+   menu_t *m_run_to = menu_create("to", "run to <t>", "run to <t>", "", f_run_to);
+   menu_add_child(m_run, m_run_to);
+
+   menu_t *m_run_until = menu_create("until", "run until <t|V|soc> <val>", "run until <t|V|soc> <val>", "", f_run_until);
+   menu_add_peer(m_run_to, m_run_until);
+
+   menu_t *m_run_another = menu_create("another", "run another <t> seconds", "run another <t>", "", f_run_another);
+   menu_add_peer(m_run_until, m_run_another);
+
+   menu_t *m_run_script = menu_create("script", "run script <file>", "run script <file>", "", f_run_script);
+   menu_add_peer(m_run_another, m_run_script);
+
+   /* set/show commands */
    menu_t *m_set = menu_create("set", "set param value", "set <param> <value>", "", f_set);
    menu_add_peer(m_root, m_set);
 
    menu_t *m_show = menu_create("show", "show param value", "show | show <param>", "", f_show);
    menu_add_peer(m_root, m_show);
 
+
+   /* log command */
    menu_t *m_log = menu_create("log", "log data to file", "log <start <file> <data0> <data1> ...> | <stop>", "", f_log);
    menu_add_peer(m_root, m_log);
 
+   /* plot command */
    menu_t *m_plot = menu_create("plot", "plot a csv file", "plot <file>", "", f_plot);
    menu_add_peer(m_root, m_plot);
 
+   /* Compare command */
    menu_t *m_compare = menu_create("compare", "compare fgic & batt ecm model", "compare", "", f_compare);
    menu_add_peer(m_root, m_compare);
 
-   menu_t *m_cd = menu_create("cd", "cd command", "cd <here | there>", "", f_cd);
+   /* dummy placeholder commands */
+   menu_t *m_cd = menu_create("cd", "cd command", "cd <here | there>", "", NULL);
    menu_add_peer(m_root, m_cd);
 
    menu_t *m_here = menu_create("here", "here commands", "here-", "", f_here);
@@ -782,6 +918,7 @@ menu_t *app_menu_init()
    menu_t *m_there = menu_create("there", "there commands", "there-", "", f_there);
    menu_add_peer(m_here, m_there);
 
+   
    return m_root;
 }
 
