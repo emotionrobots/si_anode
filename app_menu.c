@@ -147,118 +147,30 @@ int set_params(sim_t *sim, char *name, char *value)
 }
 
 
-/*!
- *---------------------------------------------------------------------------------------------------------------------
- *
- *  @fn         int get_params(sim_t *sim, char *name, void *value)
- *
- *  @brief      Set parameter helper function
- *
- *---------------------------------------------------------------------------------------------------------------------
- */
-static
-int get_params(sim_t *sim, char *name, void *value)
-{
-   int rc = -1;
-
-   LOCK(&sim->mtx);
-   for (int i=0; i < sim->params_sz; i++)
-   {
-       if (0==strcmp(sim->params[i].name, name))
-       {
-          if (0==strcmp(sim->params[i].type, "%b"))
-             *((bool *)value) = *((bool *)sim->params[i].value);
-          else if (0==strcmp(sim->params[i].type, "%d"))
-             *((int *)value) = *((int *)sim->params[i].value);
-          else if (0==strcmp(sim->params[i].type, "%ld"))
-             *((long *)value) = *((long *)sim->params[i].value);
-          else if (0==strcmp(sim->params[i].type, "%f"))
-             *((float *)value) = *((float *)sim->params[i].value);
-          else if (0==strcmp(sim->params[i].type, "%lf"))
-             *((double *)value) = *((double *)sim->params[i].value);
-          else
-             strcpy(value, (char *)sim->params[i].value);
-          rc = 0;
-          break;
-       }
-   }
-   UNLOCK(&sim->mtx);
-
-   return rc;
-}
-
 
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		char* get_params_type(sim_t *sim, char *name)
- *
- *  @brief      Get parameter type 
- *
- *---------------------------------------------------------------------------------------------------------------------
- */
-static
-char* get_params_type(sim_t *sim, char *name)
-{
-   char *ptype = NULL;
-
-   LOCK(&sim->mtx);
-   for (int i=0; i < sim->params_sz; i++)
-   {
-       if (0==strcmp(sim->params[i].name, name))
-       {
-          ptype = sim->params[i].type;
-          break;
-       }
-   }
-   UNLOCK(&sim->mtx);
-
-   return ptype;
-}
-
-
-/*!
- *---------------------------------------------------------------------------------------------------------------------
- *
- *  @fn         int check_cond(sim_t *sim, bool *res, char *lop, char *param, char *compare, double value)
+ *  @fn         int setup_cond(sim_t *sim, bool *res, char *lop, char *param, char *compare, double value)
  *
  *  @brief      Check condition
  *
  *---------------------------------------------------------------------------------------------------------------------
  */
 static
-int check_cond(sim_t *sim, bool *res, char *lop, char *param, char *compare, double value)
+int setup_cond(sim_t *sim, int k, char* lop, char *param, char *compare, double value)
 {
-   double pval = 0;
-   char *ptype = get_params_type(sim, param);
+   char *ptype = util_get_params_type(sim, param);
    if (ptype == NULL || (0 != strcmp(ptype, "%lf"))) return -1;
-   get_params(sim, param, &pval);
 
-   /* COND */
-   bool cond = false;
-   if (0==strcmp(compare, ">"))
-      cond = (pval > value);
-   else if (0==strcmp(compare, ">="))
-      cond = (pval >= value);
-   else if (0==strcmp(compare, "<"))
-      cond = (pval < value);
-   else if (0==strcmp(compare, "<="))
-      cond = (pval <= value);
-   else
-      return -2;
-
-   /* LOP */
-   if (lop == NULL)
-      *res = cond;
-   else if (0==strcmp(lop, "&&"))
-      *res = *res && cond;
-   else if (0==strcmp(lop, "||"))
-      *res = *res || cond;
-   else
-      return -3;
+   strcpy(sim->cond[k].param, param);
+   sim->cond[k].compare = util_strtolop(compare);
+   sim->cond[k].value = value;
+   sim->cond[k].lop = util_strtolop(lop);
 
    return 0;
 }
+
 
 /*!
  *---------------------------------------------------------------------------------------------------------------------
@@ -309,12 +221,16 @@ int f_run_to(struct _menu *m, int argc, char **argv, void *p_usr)
    double t_end = strtod(argv[1], &endptr);
    if (argv[1]!=endptr && errno==0)
    {
-      LOCK(&sim->mtx);   
-      sim->t_end = t_end;
-      UNLOCK(&sim->mtx);   
-
+      rc = setup_cond(sim, 0, NULL, "t", ">=", t_end);
+      if (rc != 0)
+      {
+         printf("f_run_to: setup_cond returned rc=%d\n", rc);
+         goto _err_ret;
+      }
       rc = sim_run_start(sim);
    }
+
+_err_ret:
    return rc;
 }
 
@@ -823,13 +739,15 @@ _err_ret:
  *
  *  @note	run until <t | v | T | soc> <op> <value> 
  *
+ *  The function sets up the conditionals then unpause the sim_loop(). sim_check_pause() will check the conditionals
+ *  for pausing.
+ *
  *---------------------------------------------------------------------------------------------------------------------
  */
 static
 int f_run_until(struct _menu *m, int argc, char **argv, void *p_usr)
 {
    char *endptr;
-   bool res;
 
    if (m==NULL || p_usr==NULL || argv==NULL) return -1;
    sim_t *sim = (sim_t *)p_usr;
@@ -841,12 +759,16 @@ int f_run_until(struct _menu *m, int argc, char **argv, void *p_usr)
    int remain = xargc;
 
    if (!util_is_numeric(argv[i+3])) return -3;
+
+   LOCK(&sim->mtx);
+   int k = 0;
    char *lop = NULL;
    char *param = argv[i+1];
    char *comparator = argv[i+2];
    double value = strtod(argv[i+3], &endptr);
-   if (0 != check_cond(sim, &res, lop, param, comparator, value)) return -4;
+   int rc = setup_cond(sim, k++, lop, param, comparator, value);
    remain -= 3;
+   if (rc != 0) return -4;
 
    while (remain >= 4) 
    {
@@ -856,11 +778,25 @@ int f_run_until(struct _menu *m, int argc, char **argv, void *p_usr)
       param = argv[i+1];
       comparator = argv[i+2];
       value = strtod(argv[i+3], &endptr);
-      if (0 != check_cond(sim, &res, lop, param, comparator, value)) return -4;
+      rc = setup_cond(sim, k++, lop, param, comparator, value);
+      if (rc != 0) break;
       remain -= 4; 
    }
+   UNLOCK(&sim->mtx);
+   if (rc != 0) return -4;
 
    if (remain != 0) return -5; 
+
+#if 0
+   for (int j=0; j<MAX_COND; j++)
+   {
+      printf("cond#%d: lop=%s, param=%s, comparator=%s, value=%lf\n", 
+              j, util_loptostr(sim->cond[j].lop), sim->cond[j].param, 
+	      util_loptostr(sim->cond[j].compare), sim->cond[j].value);
+   }
+#endif
+
+   rc = sim_run_start(sim);
    return 0;
 }
 
@@ -890,12 +826,16 @@ int f_run_another(struct _menu *m, int argc, char **argv, void *p_usr)
    double t_more = strtod(argv[1], &endptr);
    if (argv[1]!=endptr && errno==0)
    {
-      LOCK(&sim->mtx);
-      sim->t_end = sim->t + t_more;
-      UNLOCK(&sim->mtx);
-
+      rc = setup_cond(sim, 0, NULL, "t", ">=", sim->t + t_more);
+      if (rc != 0) 
+      {
+         printf("f_run_another: setup_cond returned rc=%d\n", rc);
+         goto _err_ret;
+      }
       rc = sim_run_start(sim);
    }
+
+_err_ret:
    return rc;
 }
 
@@ -1027,7 +967,7 @@ menu_t *app_menu_init()
 
 
    /* run commands */
-   menu_t *m_run = menu_create("run", "run <to | until | another>", "run <to | until | another>", "", NULL);
+   menu_t *m_run = menu_create("run", "run <script | to | until | another>", "", "", NULL);
    menu_add_peer(m_root, m_run);
 
    menu_t *m_run_to = menu_create("to", "run to <t>", "run to <t>", "", f_run_to);

@@ -9,6 +9,7 @@
  */
 #include <assert.h>
 #include "linfit.h"
+#include "util.h"
 #include "fgic.h"
 
 extern flash_params_t g_flash_params;
@@ -487,9 +488,10 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
          util_update_h_tbl(ecm->params->h_chg_tbl, ecm->params->soc_tbl, SOC_GRIDS, soc, H_meas);
       else if (fgic->h_tbl_to_update == DSG)
          util_update_h_tbl(ecm->params->h_dsg_tbl, ecm->params->soc_tbl, SOC_GRIDS, soc, H_meas);
-
+#if 0
       printf("rest-time reached: t=%lf, H_meas=%lf, I_sum=%lf, I_avg=%lf, tbl=%d\n", 
 		      t, H_meas, fgic->I_sum, I_avg, fgic->h_tbl_to_update);
+#endif
    }
 
 

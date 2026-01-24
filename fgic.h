@@ -16,12 +16,12 @@
 #include <time.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 
 #include "ecm.h"
 #include "batt.h"
 #include "ukf.h"
-#include "util.h"
 #include "flash_params.h"
 #include "soc_ocv_lookup.h"
 

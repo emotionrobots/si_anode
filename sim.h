@@ -55,6 +55,8 @@ typedef struct {
 
    char script_fn[FN_LEN]; 	/* script filename */
    menu_t *m_root;		/* root menu */
+
+   cond_t cond[MAX_COND]; 	/* conditionals */
 }
 sim_t;
 

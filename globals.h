@@ -86,6 +86,8 @@
 #define DEFAULT_EA_R1		(-20.0)   	/* should be (-) */
 #define DEFAULT_EA_C1		(20.0)   	/* should be (+) */
 
+#define MAX_COND		(3)		/* max number of conditionals allowed */
+#define NAME_LEN		(20)		/* max param name length */
 
 /*!
  *---------------------------------------------------------------------------------------------------------------------
@@ -99,6 +101,32 @@ typedef struct
    void *value;
 }
 params_t;
+
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *  conditional  
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+enum LOP {
+   NOP	= 0,
+   GT,
+   GTE,
+   LT,
+   LTE,
+   EQ,
+   AND,
+   OR
+};
+
+typedef struct 
+{
+   enum LOP lop;
+   char param[NAME_LEN];
+   enum LOP compare;
+   double value;
+}
+cond_t;
 
 
 #endif // __GLOBALS_H__

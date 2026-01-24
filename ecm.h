@@ -13,7 +13,6 @@
 #include <stddef.h>
 #include "globals.h"
 #include "flash_params.h"
-#include "util.h"
 
 
 typedef struct 

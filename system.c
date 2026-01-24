@@ -14,6 +14,7 @@
 #include <errno.h>
 
 #include "globals.h"
+#include "fgic.h"
 #include "system.h"
 
 /*!

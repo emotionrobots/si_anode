@@ -177,8 +177,7 @@ int menu_process(menu_t *m, int argc, char **argv, void *p_usr)
       if (m->child != NULL)                              // If child exist, process child recursively
       {
          rc = menu_process(m->child, argc-1, &argv[1], p_usr);
-	 if (rc < 0)
-            printf("  Hint: %s\n", m->help);
+	 // if (rc < 0) printf("  Hint: %s\n", m->help);
 	 return rc;
       }
       else if (m->handler != NULL)                       // No child; call handler if defined

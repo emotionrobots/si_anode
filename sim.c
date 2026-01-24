@@ -18,6 +18,7 @@
 
 #include "globals.h"
 #include "flash_params.h"
+#include "util.h"
 #include "sim.h"
 #include "scope_plot.h"
 
@@ -336,6 +337,71 @@ int params_init(sim_t *sim)
    return i;
 }
 
+
+
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn         int check_cond(sim_t *sim, bool *res, char *lop, char *param, char *compare, void *pval)
+ *
+ *  @brief      Check condition
+ *
+ *  @param	sim	sim pointer
+ *  @param	res	logical result (also input to be && or || with the compare result
+ *  @param	lop	logical operator (&& or ||)
+ *  @param   	param	parameter name
+ *  @param	compare	==, !=, >, >=, <, <= (depending on data type)	
+ *  @param	pval	pointer to value register to be compared to
+ *
+ *  @return	0 if success, negative otherwise
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static
+int sim_check_cond(sim_t *sim, bool *res, enum LOP lop, char *param, enum LOP compare, double val)
+{
+   double param_val = 0;
+   char *param_type=NULL;
+   bool cond = false;
+
+   if (sim==NULL || res==NULL || param==NULL) return -1;
+
+   /* retrieve param type */
+   param_type = util_get_params_type(sim, param); 
+   if (param_type == NULL || 0 != strcmp(param_type, "%lf")) return -2;
+
+   /* retrieve param value */
+   if (util_get_params_val(sim, param, &param_val) < 0) return -3;
+
+   /* compare */
+   if (compare == EQ)
+      cond = (param_val == val);
+   else if (compare == GT)
+      cond = (param_val > val);
+   else if (compare == GTE)
+      cond = (param_val >= val);
+   else if (compare == LT)
+      cond = (param_val < val);
+   else if (compare == LTE)
+      cond = (param_val <= val);
+   else
+      return -4;
+   
+   /* combine with previous res with lop */
+   if (lop == NOP)
+      *res = cond;
+   else if (lop == AND)
+      *res = *res && cond;
+   else if (lop == OR)
+      *res = *res || cond;
+   else
+      return -5;
+
+   return 0;
+}
+
+
 /*!
  *----------------------------------------------------------------------------------------------------------------------
  *
@@ -354,36 +420,31 @@ bool sim_check_pause(sim_t *sim)
    batt_t *batt = sim->batt;
 
    /* time-based conditions */
-   if (sim->t >= sim->t_end) do_pause = true;
+   // if (sim->t >= sim->t_end) do_pause = true;
 
    /* automatic pause conditions */
    if (batt->ecm->chg_state==CHG && batt->ecm->soc >= 1.0f) do_pause = true;
    if (batt->ecm->chg_state==DSG && batt->ecm->soc <= 0.0f) do_pause = true;
 
-   return do_pause;
-}
-
-
-/*!
- *---------------------------------------------------------------------------------------------------------------------
- *
- *  @fn		void timer_callback(void *usr_arg)
- *
- *  @brief	Timer callback for REALTIME runs
- *
- *---------------------------------------------------------------------------------------------------------------------
- */
-static
-void timer_callback(void *usr_arg)
-{
-   sim_t *sim = (sim_t *)usr_arg;
-   sim_update(sim);
-
-   if (sim_check_pause(sim))
+   /* check conditional */
+   bool res = false;
+   for (int k=0; k<MAX_COND; k++)
    {
-      itimer_stop(sim->tm);
-      printf("run paused at t=%lf\n", sim->t);
+      int rc = 0;
+      if (sim->cond[k].compare != NOP)
+      {
+         rc = sim_check_cond(sim, &res, sim->cond[k].lop, sim->cond[k].param, sim->cond[k].compare, sim->cond[k].value);
+      }
+      if (rc != 0) printf("conditional %d has error.\n", k);
    }
+
+   if (res) 
+   {  
+      for (int k=0; k<MAX_COND; k++) sim->cond[k].compare = NOP;    /* clear triggered cond so it doesn't repeat */
+      do_pause = true;
+   }
+
+   return do_pause;
 }
 
 
@@ -432,6 +493,31 @@ bool sim_get_pause(sim_t *sim)
 }
 
 
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn         void timer_callback(void *usr_arg)
+ *
+ *  @brief      Timer callback for REALTIME runs
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static
+void timer_callback(void *usr_arg)
+{
+   sim_t *sim = (sim_t *)usr_arg;
+   sim_update(sim);
+
+   if (sim_check_pause(sim))
+   {
+      itimer_stop(sim->tm);
+      printf("run paused at t=%lf (soc_batt=%lf, V_batt=%lf)\n", 
+             sim->t, sim->batt->ecm->soc, sim->batt->ecm->V_batt);
+   }
+}
+
+
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
@@ -454,13 +540,20 @@ void *sim_loop(void *arg)
    {
       /* check pause */
       LOCK(&sim->mtx); 
+
       if (sim_check_pause(sim))
          sim->pause = true;
+
       if (pause && !sim->pause)
-         printf("run resumed from t=%lf\n", sim->t);
+         printf("run resumed from t=%lf (soc_batt=%lf, V_batt=%lf)\n", 
+             sim->t, sim->batt->ecm->soc, sim->batt->ecm->V_batt);
+
       pause = sim->pause; 
+
       if (pause)
-         printf("run paused at t=%lf\n", sim->t);
+         printf("run paused at t=%lf (soc_batt=%lf, V_batt=%lf)\n", 
+             sim->t, sim->batt->ecm->soc, sim->batt->ecm->V_batt);
+
       UNLOCK(&sim->mtx); 
 
       while (pause)
@@ -487,7 +580,8 @@ void *sim_loop(void *arg)
       sched_yield();
    }
  
-   printf("run completed at t=%lf\n", sim->t); 
+   printf("run completed at t=%lf (soc_batt=%lf, V_batt=%lf)\n", 
+           sim->t, sim->batt->ecm->soc, sim->batt->ecm->V_batt);
    return NULL;
 
 _err_ret:
@@ -534,6 +628,13 @@ sim_t *sim_create(double t0, double dt, double temp0)
    sim->done = false;
    sim->pause = true;
 
+   for (int k=0; k<MAX_COND; k++)
+   {
+      sim->cond[k].lop = NOP;
+      memset(sim->cond[k].param, 0, NAME_LEN*sizeof(char));
+      sim->cond[k].compare = NOP;
+      sim->cond[k].value = 0;
+   }
 
    sim->batt = batt_create(&g_batt_flash_params, temp0);
    if (sim->batt == NULL) goto err_ret;

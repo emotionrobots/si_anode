@@ -7,9 +7,11 @@
  *
  *=====================================================================================================================
  */
+#include <string.h>
 #include <math.h>
 #include "globals.h"
 #include "util.h"
+#include "sim.h"
 
 
 /*!
@@ -190,9 +192,123 @@ int util_update_h_tbl(double *h_tbl, double *soc_tbl, int n, double soc, double 
       h_tbl[right] = (1.0-beta)*H + beta*h_tbl[right];
    }
 
-   printf("soc=%lf, left=%d, right=%d\n", soc, left, right);
+   // printf("soc=%lf, left=%d, right=%d\n", soc, left, right);
 
    return 0;
+}
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn         int util_get_params_val(sim_t *sim, char *name, double *value)
+ *
+ *  @brief      Get parameter value 
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+int util_get_params_val(sim_t *sim, char *name, double *value)
+{
+   int rc = -1;
+
+   for (int i=0; i < sim->params_sz; i++)
+   {
+       if ( 0==strcmp(sim->params[i].name, name) && 0==strcmp(sim->params[i].type, "%lf"))
+       {
+          *value = *((double *)sim->params[i].value);
+	  rc = 0;
+          break;
+       }
+   }
+
+   return rc;
+}
+
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn         char* util_get_params_type(sim_t *sim, char *name)
+ *
+ *  @brief      Get parameter type
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+char* util_get_params_type(sim_t *sim, char *name)
+{
+   char *ptype = NULL;
+
+   for (int i=0; i < sim->params_sz; i++)
+   {
+       if (0==strcmp(sim->params[i].name, name))
+       {
+          ptype = sim->params[i].type;
+          break;
+       }
+   }
+
+   return ptype;
+}
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn         enum LOP util_strtolop(char *op)
+ *
+ *  @brief      Convert string to LOP
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+enum LOP util_strtolop(char *op)
+{
+   if (op == NULL) 
+      return NOP;
+   else if (0==strcmp(op, "=="))
+      return EQ;
+   else if (0==strcmp(op, ">"))
+      return GT;
+   else if (0==strcmp(op, ">="))
+      return GTE;
+   else if (0==strcmp(op, "<"))
+      return LT;
+   else if (0==strcmp(op, "<="))
+      return LTE;
+   else if (0==strcmp(op, "&&"))
+      return AND;
+   else if (0==strcmp(op, "||"))
+      return OR;
+   else
+      return NOP;
+}
+
+
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn         char *util_loptostr(enum LOP lop)
+ *
+ *  @brief      Convert LOP to string
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+char *util_loptostr(enum LOP lop)
+{
+   if (lop == EQ)
+      return "==";
+   else if (lop == GT)
+      return ">";
+   else if (lop == GTE)
+      return ">=";
+   else if (lop == LT)
+      return "<";
+   else if (lop == LTE)
+      return "<=";
+   else if (lop == AND)
+      return "&&";
+   else if (lop == OR)
+      return "||";
+   else
+      return NULL;
 }
 
 
