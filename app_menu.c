@@ -668,8 +668,8 @@ int f_compare(struct _menu *m, int argc, char **argv, void *p_usr)
       for (int k=0; k<SOC_GRIDS; k++)
       {
          printf("Batt_R0[%d]=%lf, FGIC_R0[%d]=%lf\n", 
-                 k, batt->ecm->params->r0_tbl[k],
-		 k, fgic->ecm->params->r0_tbl[k]);
+                 k, batt->ecm->params.r0_tbl[k],
+		 k, fgic->ecm->params.r0_tbl[k]);
       }
    }
    else if (0==strcmp(argv[1], "R1"))
@@ -677,8 +677,8 @@ int f_compare(struct _menu *m, int argc, char **argv, void *p_usr)
       for (int k=0; k<SOC_GRIDS; k++)
       {
          printf("Batt_R1[%d]=%lf, FGIC_R1[%d]=%lf\n", 
-                 k, batt->ecm->params->r1_tbl[k],
-		 k, fgic->ecm->params->r1_tbl[k]);
+                 k, batt->ecm->params.r1_tbl[k],
+		 k, fgic->ecm->params.r1_tbl[k]);
       }
    }
    else if (0==strcmp(argv[1], "C1"))
@@ -686,8 +686,8 @@ int f_compare(struct _menu *m, int argc, char **argv, void *p_usr)
       for (int k=0; k<SOC_GRIDS; k++)
       {
          printf("Batt_C1[%d]=%lf, FGIC_C1[%d]=%lf\n", 
-                 k, batt->ecm->params->c1_tbl[k],
-		 k, fgic->ecm->params->c1_tbl[k]);
+                 k, batt->ecm->params.c1_tbl[k],
+		 k, fgic->ecm->params.c1_tbl[k]);
       }
    }
    else if (0==strcmp(argv[1], "h_dsg"))
@@ -695,8 +695,8 @@ int f_compare(struct _menu *m, int argc, char **argv, void *p_usr)
       for (int k=0; k<SOC_GRIDS; k++)
       {
          printf("Batt_h_dsg[%d]=%lf, FGIC_h_dsg[%d]=%lf\n", 
-                 k, batt->ecm->params->h_dsg_tbl[k],
-		 k, fgic->ecm->params->h_dsg_tbl[k]);
+                 k, batt->ecm->params.h_dsg_tbl[k],
+		 k, fgic->ecm->params.h_dsg_tbl[k]);
       }
    }
    else if (0==strcmp(argv[1], "h_chg"))
@@ -704,8 +704,8 @@ int f_compare(struct _menu *m, int argc, char **argv, void *p_usr)
       for (int k=0; k<SOC_GRIDS; k++)
       {
          printf("Batt_h_chg[%d]=%lf, FGIC_h_chg[%d]=%lf\n", 
-                 k, batt->ecm->params->h_chg_tbl[k],
-		 k, fgic->ecm->params->h_chg_tbl[k]);
+                 k, batt->ecm->params.h_chg_tbl[k],
+		 k, fgic->ecm->params.h_chg_tbl[k]);
       }
    }
    else if (0==strcmp(argv[1], "V_oc"))
@@ -713,8 +713,8 @@ int f_compare(struct _menu *m, int argc, char **argv, void *p_usr)
       for (int k=0; k<SOC_GRIDS; k++)
       {
          printf("Batt_V_oc[%d]=%lf, FGIC_V_oc[%d]=%lf\n",
-                 k, batt->ecm->params->ocv_tbl[k],
-                 k, fgic->ecm->params->ocv_tbl[k]);
+                 k, batt->ecm->params.ocv_tbl[k],
+                 k, fgic->ecm->params.ocv_tbl[k]);
       }
    }
    else

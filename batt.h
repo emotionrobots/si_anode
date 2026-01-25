@@ -22,7 +22,6 @@
 
 
 typedef struct {
-   flash_params_t *params;
    ecm_t *ecm;
 }
 batt_t;

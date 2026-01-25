@@ -15,6 +15,7 @@
 
 #include "batt.h"
 
+extern flash_params_t g_batt_flash_params;
 
 /*!
  *---------------------------------------------------------------------------------------------------------------------
@@ -32,9 +33,8 @@ batt_t *batt_create(flash_params_t *p, double T0_C)
    batt_t *batt = (batt_t *)calloc(1, sizeof(batt_t));
    if (batt != NULL)
    {
-      batt->params = p;
       batt->ecm = (ecm_t *)malloc(sizeof(ecm_t));
-      int rc = ecm_init(batt->ecm, p, T0_C);
+      int rc = ecm_init(batt->ecm, &g_batt_flash_params, T0_C);
       if (rc != 0) return NULL;
    }
    return batt;

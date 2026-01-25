@@ -12,7 +12,7 @@
 #include "util.h"
 #include "fgic.h"
 
-extern flash_params_t g_flash_params;
+extern flash_params_t g_fgic_flash_params;
 
 /*!
  *---------------------------------------------------------------------------------------------------------------------
@@ -53,11 +53,11 @@ void fgic_fx(double *x, const double *u, double dt, void *p_usr)
    /* lookup R0, R1, C1 */
    double R0=0, R1=0, C1=0;
    ecm_lookup_r0(ecm, soc, &R0);
-   R0 = util_temp_adj(R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
+   R0 = util_temp_adj(R0, ecm->Ea_R0, ecm->T_C, ecm->params.T_ref_C);
    ecm_lookup_r1(ecm, soc, &R1);
-   R1 = util_temp_adj(R1, ecm->Ea_R1, ecm->T_C, ecm->params->T_ref_C);
+   R1 = util_temp_adj(R1, ecm->Ea_R1, ecm->T_C, ecm->params.T_ref_C);
    ecm_lookup_c1(ecm, soc, &C1);
-   C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
+   C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params.T_ref_C);
 
    double tau = R1 * C1; 
    if (tau < 1e-9) tau = 1e-9;
@@ -113,7 +113,7 @@ void fgic_hx(const double *x, double *z, void *p_usr)
 
    double R0;
    ecm_lookup_r0(ecm, soc, &R0);
-   R0 = util_temp_adj(R0, ecm->Ea_R0, T_C, ecm->params->T_ref_C);   
+   R0 = util_temp_adj(R0, ecm->Ea_R0, T_C, ecm->params.T_ref_C);   
 
    /* compute V_term and T_C */ 
    z[0] = (V_oc + H) - V_rc - ecm->I * R0;
@@ -145,7 +145,7 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
       fgic->vrc_y[i] = 0.0;
    }
 
-   fgic->params = p;
+
    fgic->V_chg = DEFAULT_CV;
    fgic->I_chg = DEFAULT_CC;
    fgic->V_noise = DEFAULT_V_NOISE;
@@ -170,7 +170,7 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    fgic->batt = batt;
    
    fgic->ecm = (ecm_t *)malloc(sizeof(ecm_t));
-   if (ecm_init(fgic->ecm, p, T0_C) != 0) goto _err_ret;
+   if (ecm_init(fgic->ecm, &g_fgic_flash_params, T0_C) != 0) goto _err_ret;
    // fgic->ecm->soc = 0.5;  // set wrong initially
    
    fgic->ecm->prev_V_batt = fgic->ecm->V_batt;
@@ -353,11 +353,11 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    /* update default R0, R1, C1 */
    double R0, R1, C1;
    ecm_lookup_r0(ecm, soc, &R0);
-   ecm->R0 = util_temp_adj(R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
+   ecm->R0 = util_temp_adj(R0, ecm->Ea_R0, ecm->T_C, ecm->params.T_ref_C);
    ecm_lookup_r1(ecm, soc, &R1);
-   ecm->R1 = util_temp_adj(R1, ecm->Ea_R1, ecm->T_C, ecm->params->T_ref_C);
+   ecm->R1 = util_temp_adj(R1, ecm->Ea_R1, ecm->T_C, ecm->params.T_ref_C);
    ecm_lookup_c1(ecm, soc, &C1);
-   ecm->C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
+   ecm->C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params.T_ref_C);
 
 
 #if 0
@@ -409,15 +409,15 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 	 {
 	    /* adjust R0 to T_ref_C for proper table update */
 	    R0_est = -(dV_rc+dV_batt)/dI;
-	    R0_est = util_temp_unadj(R0_est, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
+	    R0_est = util_temp_unadj(R0_est, ecm->Ea_R0, ecm->T_C, ecm->params.T_ref_C);
             ecm_lookup_r0(ecm, soc, &R0_ref);
             ratio = R0_est / R0_ref;
             for (int k=0; k<SOC_GRIDS; k++)
-               ecm->params->r0_tbl[k] *= ratio; 
+               ecm->params.r0_tbl[k] *= ratio; 
 
 	    /* re-read R0 and adjust it to current temp */
             ecm_lookup_r0(ecm, soc, &ecm->R0);
-	    ecm->R0 = util_temp_adj(ecm->R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
+	    ecm->R0 = util_temp_adj(ecm->R0, ecm->Ea_R0, ecm->T_C, ecm->params.T_ref_C);
 
 	    /* clear vrc_buf */
             fgic->buf_len = 0; 
@@ -450,15 +450,15 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 	    C1_est = -1.0/(r.slope*ecm->R1);
 
 	    /* update C1 table */
-	    C1_est = util_temp_unadj(C1_est, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
+	    C1_est = util_temp_unadj(C1_est, ecm->Ea_C1, ecm->T_C, ecm->params.T_ref_C);
             ecm_lookup_c1(ecm, soc, &C1_ref);
             ratio = C1_est / C1_ref;
             for (int k=0; k<SOC_GRIDS; k++)
-               ecm->params->c1_tbl[k] *= ratio; 
+               ecm->params.c1_tbl[k] *= ratio; 
 
 	    /* re-read C1 and adjust it to current temp */
             ecm_lookup_c1(ecm, soc, &C1_est);
-	    ecm->C1 = util_temp_adj(C1_est, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);
+	    ecm->C1 = util_temp_adj(C1_est, ecm->Ea_C1, ecm->T_C, ecm->params.T_ref_C);
 
 	    fgic->buf_len = 0;
 	    fgic->learning = false;
@@ -485,9 +485,9 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
       double H_meas = ecm->V_batt - ecm->V_oc + ecm->V_rc + I_avg*ecm->R0;
 
       if (fgic->h_tbl_to_update == CHG) 
-         util_update_h_tbl(ecm->params->h_chg_tbl, ecm->params->soc_tbl, SOC_GRIDS, soc, H_meas);
+         util_update_h_tbl(ecm->params.h_chg_tbl, ecm->params.soc_tbl, SOC_GRIDS, soc, H_meas);
       else if (fgic->h_tbl_to_update == DSG)
-         util_update_h_tbl(ecm->params->h_dsg_tbl, ecm->params->soc_tbl, SOC_GRIDS, soc, H_meas);
+         util_update_h_tbl(ecm->params.h_dsg_tbl, ecm->params.soc_tbl, SOC_GRIDS, soc, H_meas);
 #if 0
       printf("rest-time reached: t=%lf, H_meas=%lf, I_sum=%lf, I_avg=%lf, tbl=%d\n", 
 		      t, H_meas, fgic->I_sum, I_avg, fgic->h_tbl_to_update);

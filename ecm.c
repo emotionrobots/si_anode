@@ -75,7 +75,24 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    if (ecm == NULL || p == NULL) return -1;
 
    memset(ecm, 0, sizeof(*ecm));
-   ecm->params = p;
+
+   /* init g_flash_params for fgic */
+   for (int i=0; i<SOC_GRIDS; i++) ecm->params.soc_tbl[i] = p->soc_tbl[i];
+   for (int i=0; i<SOC_GRIDS; i++) ecm->params.ocv_tbl[i] = p->ocv_tbl[i];
+   for (int i=0; i<SOC_GRIDS; i++) ecm->params.r0_tbl[i] = p->r0_tbl[i];
+   for (int i=0; i<SOC_GRIDS; i++) ecm->params.r1_tbl[i] = p->r1_tbl[i];
+   for (int i=0; i<SOC_GRIDS; i++) ecm->params.c1_tbl[i] = p->c1_tbl[i];
+   for (int i=0; i<SOC_GRIDS; i++) ecm->params.h_chg_tbl[i] = p->h_chg_tbl[i];
+   for (int i=0; i<SOC_GRIDS; i++) ecm->params.h_dsg_tbl[i] = p->h_dsg_tbl[i];
+   for (int i=0; i<SOC_GRIDS; i++) ecm->params.h_dsg_tbl[i] = p->h_dsg_tbl[i];
+
+   ecm->params.design_capacity = p->design_capacity;
+   ecm->params.v_end = p->v_end;
+   ecm->params.T_ref_C = p->T_ref_C;
+
+   ecm->params.I_quit = p->I_quit;
+   ecm->params.I_chg = p->I_chg;
+   ecm->params.V_chg = p->V_chg;
 
    ecm->I_quit = p->I_quit;
 
@@ -90,8 +107,8 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    ecm->ht = HEAT_TRANS_COEF;  	/* Thermal resistance °C/W */
 
    /* Dynamic state defaults */
-   ecm->soc = ecm->params->soc_tbl[SOC_GRIDS-1];
-   ecm->V_oc = ecm->params->ocv_tbl[SOC_GRIDS-1];
+   ecm->soc = ecm->params.soc_tbl[SOC_GRIDS-1];
+   ecm->V_oc = ecm->params.ocv_tbl[SOC_GRIDS-1];
    ecm->V_rc = 0.0;
    ecm->V_batt = ecm->V_oc;
    ecm->prev_V_batt = ecm->V_batt;
@@ -101,7 +118,7 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    ecm->T_C = T0_C;
 
    /* Hysteresis */
-   ecm->H = ecm->params->h_dsg_tbl[SOC_GRIDS-1];
+   ecm->H = ecm->params.h_dsg_tbl[SOC_GRIDS-1];
 
    /* R0, R1, C1 */
    ecm_lookup_r0(ecm, ecm->soc, &ecm->R0);
@@ -146,8 +163,7 @@ void ecm_cleanup(ecm_t *ecm)
  */
 int ecm_lookup_ocv(const ecm_t *ecm, double soc, double *val)
 {
-    flash_params_t *params = ecm->params;
-    return tbl_interp(params->soc_tbl, params->ocv_tbl, SOC_GRIDS, soc, val);
+    return tbl_interp(ecm->params.soc_tbl, ecm->params.ocv_tbl, SOC_GRIDS, soc, val);
 }
 
 
@@ -164,16 +180,15 @@ int ecm_lookup_h(const ecm_t *ecm, double soc, double *val)
 {
     int rc=0;
     double H=0;
-    flash_params_t *params = ecm->params;
 
     if (ecm->chg_state==CHG)
     {
-       rc = tbl_interp(params->soc_tbl, params->h_chg_tbl, SOC_GRIDS, soc, &H);
+       rc = tbl_interp(ecm->params.soc_tbl, ecm->params.h_chg_tbl, SOC_GRIDS, soc, &H);
        *val = H;
     }
     else if (ecm->chg_state==DSG) 
     {
-       rc = tbl_interp(params->soc_tbl, params->h_dsg_tbl, SOC_GRIDS, soc, &H);
+       rc = tbl_interp(ecm->params.soc_tbl, ecm->params.h_dsg_tbl, SOC_GRIDS, soc, &H);
        *val = H;
     }
     else
@@ -194,8 +209,7 @@ int ecm_lookup_h(const ecm_t *ecm, double soc, double *val)
  */
 int ecm_lookup_r0(const ecm_t *ecm, double soc, double *val)
 {
-    flash_params_t *params = ecm->params;
-    return tbl_interp(params->soc_tbl, params->r0_tbl, SOC_GRIDS, soc, val);
+    return tbl_interp(ecm->params.soc_tbl, ecm->params.r0_tbl, SOC_GRIDS, soc, val);
 }
 
 /*! 
@@ -209,8 +223,7 @@ int ecm_lookup_r0(const ecm_t *ecm, double soc, double *val)
  */
 int ecm_lookup_r1(const ecm_t *ecm, double soc, double *val)
 {
-    flash_params_t *params = ecm->params;
-    return tbl_interp(params->soc_tbl, params->r1_tbl, SOC_GRIDS, soc, val);
+    return tbl_interp(ecm->params.soc_tbl, ecm->params.r1_tbl, SOC_GRIDS, soc, val);
 }
 
 
@@ -225,8 +238,7 @@ int ecm_lookup_r1(const ecm_t *ecm, double soc, double *val)
  */
 int ecm_lookup_c1(const ecm_t *ecm, double soc, double *val)
 {
-    flash_params_t *params = ecm->params;
-    return tbl_interp(params->soc_tbl, params->c1_tbl, SOC_GRIDS, soc, val);
+    return tbl_interp(ecm->params.soc_tbl, ecm->params.c1_tbl, SOC_GRIDS, soc, val);
 }
 
 
@@ -264,13 +276,13 @@ int ecm_update(ecm_t *ecm, double I, double T_amb_C, double t, double dt)
 
     /* model param update */
     ecm_lookup_r0(ecm, ecm->soc, &R0);
-    ecm->R0 = util_temp_adj(R0, ecm->Ea_R0, ecm->T_C, ecm->params->T_ref_C);
+    ecm->R0 = util_temp_adj(R0, ecm->Ea_R0, ecm->T_C, ecm->params.T_ref_C);
 
     ecm_lookup_r1(ecm, ecm->soc, &R1);
-    ecm->R1 = util_temp_adj(R1, ecm->Ea_R1, ecm->T_C, ecm->params->T_ref_C); 
+    ecm->R1 = util_temp_adj(R1, ecm->Ea_R1, ecm->T_C, ecm->params.T_ref_C); 
 
     ecm_lookup_c1(ecm, ecm->soc, &C1);
-    ecm->C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params->T_ref_C);  
+    ecm->C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params.T_ref_C);  
 
 
     /* update V_oc */

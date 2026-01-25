@@ -18,7 +18,7 @@
 typedef struct 
 {
    /* Flash tables */
-   flash_params_t *params;			/* pointer to flash */
+   flash_params_t params;			/* pointer to flash */
 
    /* Model paramters */
    double R0, R1, C1;

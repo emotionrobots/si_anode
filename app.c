@@ -57,6 +57,14 @@ int main()
          memset(argv, 0, MAX_TOKENS*sizeof(char *));
          char *token = strtok(linebuf, delim);
 
+	 if (token != NULL && 0==strcmp(token, "reset"))
+	 {
+            sim_destroy(sim);
+            sim = sim_create(0.0, DT, TEMP_0);
+            sim->m_root = app_menu_init(sim);
+	    continue;
+	 }
+
 	 if (token != NULL && 0==strcmp(token, "quit"))
             goto _quit;
 

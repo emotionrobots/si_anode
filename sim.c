@@ -615,7 +615,7 @@ sim_t *sim_create(double t0, double dt, double temp0)
    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) 
    {
       printf("error: cannot init scope.\n");
-      goto err_ret;
+      goto _err_ret;
    }
 
 
@@ -637,32 +637,32 @@ sim_t *sim_create(double t0, double dt, double temp0)
    }
 
    sim->batt = batt_create(&g_batt_flash_params, temp0);
-   if (sim->batt == NULL) goto err_ret;
+   if (sim->batt == NULL) goto _err_ret;
 
    sim->fgic = fgic_create(sim->batt, &g_fgic_flash_params, temp0);
-   if (sim->fgic == NULL) goto err_ret;
+   if (sim->fgic == NULL) goto _err_ret;
 
    sim->system = (system_t *)system_create(sim->fgic);
-   if (sim->system == NULL) goto err_ret;
+   if (sim->system == NULL) goto _err_ret;
 
    params_init(sim);
 
    sim->tm = itimer_create(timer_callback, sim);
-   if (sim->tm == NULL) goto err_ret;
+   if (sim->tm == NULL) goto _err_ret;
 
    if (pthread_mutex_init(&sim->mtx, NULL) != 0)
-      goto err_ret;
+      goto _err_ret;
 
    sim->thread = (pthread_t *)calloc(1, sizeof(pthread_t));
-   if (sim->thread == NULL) goto err_ret;
+   if (sim->thread == NULL) goto _err_ret;
 
    if (pthread_create(sim->thread, NULL, sim_loop, sim) != 0)
-      goto err_ret;
+      goto _err_ret;
 
    return sim;
 
 
-err_ret:
+_err_ret:
    if (sim != NULL) sim_destroy(sim);
    return NULL;
 }
@@ -734,6 +734,7 @@ void sim_destroy(sim_t *sim)
    sim->pause = false;
    sim->done = true;
    UNLOCK(&sim->mtx);
+
    if (sim->thread != NULL) pthread_join(*sim->thread, NULL);
    if (sim->thread != NULL) free(sim->thread);
 

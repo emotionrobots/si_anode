@@ -1,0 +1,14 @@
+set I_on 1 
+set dutycycle 0.5
+set period 300
+set load_type 1
+log start full_cycle_H.csv soc_batt V_batt soc_fgic V_fgic
+run until soc_batt <= 0 || soc_fgic <= 0 
+set I_on 0 
+run another 1000 
+set I_on -1 
+run until soc_batt >= 1 || soc_fgic >= 1 
+log stop
+plot full_cycle_.csv
+
+

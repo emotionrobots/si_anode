@@ -28,7 +28,6 @@
 
 typedef struct {
    batt_t *batt;			// battery model
-   flash_params_t *params;		// Pointer to flash params
    ecm_t *ecm;				// ECM model pointer
    ukf_t *ukf;				// UKF object pointer 
    int period;				// FGIC run period in ms
