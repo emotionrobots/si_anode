@@ -667,54 +667,70 @@ int f_compare(struct _menu *m, int argc, char **argv, void *p_usr)
    {
       for (int k=0; k<SOC_GRIDS; k++)
       {
-         printf("Batt_R0[%d]=%lf, FGIC_R0[%d]=%lf\n", 
-                 k, batt->ecm->params.r0_tbl[k],
-		 k, fgic->ecm->params.r0_tbl[k]);
+         double r0_batt = batt->ecm->params.r0_tbl[k];
+         double r0_fgic = fgic->ecm->params.r0_tbl[k];
+         double ratio = fabs((r0_batt-r0_fgic)/r0_batt);
+         printf("Batt_R0[%d]=%lf, FGIC_R0[%d]=%lf, error=%lf\n", k, r0_batt, k, r0_fgic, ratio) ;
       }
    }
    else if (0==strcmp(argv[1], "R1"))
    {
       for (int k=0; k<SOC_GRIDS; k++)
       {
-         printf("Batt_R1[%d]=%lf, FGIC_R1[%d]=%lf\n", 
-                 k, batt->ecm->params.r1_tbl[k],
-		 k, fgic->ecm->params.r1_tbl[k]);
+         double r1_batt = batt->ecm->params.r1_tbl[k];
+         double r1_fgic = fgic->ecm->params.r1_tbl[k];
+         double ratio = fabs((r1_batt-r1_fgic)/r1_batt);
+         printf("Batt_R1[%d]=%lf, FGIC_R1[%d]=%lf, error=%lf\n", k, r1_batt, k, r1_fgic, ratio) ;
       }
    }
    else if (0==strcmp(argv[1], "C1"))
    {
       for (int k=0; k<SOC_GRIDS; k++)
       {
-         printf("Batt_C1[%d]=%lf, FGIC_C1[%d]=%lf\n", 
-                 k, batt->ecm->params.c1_tbl[k],
-		 k, fgic->ecm->params.c1_tbl[k]);
+         double c1_batt = batt->ecm->params.c1_tbl[k];
+         double c1_fgic = fgic->ecm->params.c1_tbl[k];
+         double ratio = fabs((c1_batt-c1_fgic)/c1_batt);
+         printf("Batt_R1[%d]=%lf, FGIC_R1[%d]=%lf, error=%lf\n", k, c1_batt, k, c1_fgic, ratio) ;
       }
    }
    else if (0==strcmp(argv[1], "h_dsg"))
    {
       for (int k=0; k<SOC_GRIDS; k++)
       {
-         printf("Batt_h_dsg[%d]=%lf, FGIC_h_dsg[%d]=%lf\n", 
-                 k, batt->ecm->params.h_dsg_tbl[k],
-		 k, fgic->ecm->params.h_dsg_tbl[k]);
+         double h_batt = batt->ecm->params.h_dsg_tbl[k];
+         double h_fgic = fgic->ecm->params.h_dsg_tbl[k];
+         double ratio = fabs((h_batt-h_fgic)/h_batt);
+         printf("Batt_H_dsg[%d]=%lf, FGIC_H_dsg[%d]=%lf, error=%lf\n", k, h_batt, k, h_fgic, ratio) ;
       }
    }
    else if (0==strcmp(argv[1], "h_chg"))
    {
       for (int k=0; k<SOC_GRIDS; k++)
       {
-         printf("Batt_h_chg[%d]=%lf, FGIC_h_chg[%d]=%lf\n", 
-                 k, batt->ecm->params.h_chg_tbl[k],
-		 k, fgic->ecm->params.h_chg_tbl[k]);
+         double h_batt = batt->ecm->params.h_chg_tbl[k];
+         double h_fgic = fgic->ecm->params.h_chg_tbl[k];
+         double ratio = fabs((h_batt-h_fgic)/h_batt);
+         printf("Batt_H_chg[%d]=%lf, FGIC_H_chg[%d]=%lf, error=%lf\n", k, h_batt, k, h_fgic, ratio) ;
       }
    }
    else if (0==strcmp(argv[1], "V_oc"))
    {
       for (int k=0; k<SOC_GRIDS; k++)
       {
-         printf("Batt_V_oc[%d]=%lf, FGIC_V_oc[%d]=%lf\n",
-                 k, batt->ecm->params.ocv_tbl[k],
-                 k, fgic->ecm->params.ocv_tbl[k]);
+         double ocv_batt = batt->ecm->params.ocv_tbl[k];
+         double ocv_fgic = fgic->ecm->params.ocv_tbl[k];
+         double ratio = fabs((ocv_batt-ocv_fgic)/ocv_batt);
+         printf("Batt_V_oc[%d]=%lf, FGIC_V_oc[%d]=%lf, error=%lf\n", k, ocv_batt, k, ocv_fgic, ratio) ;
+      }
+   }
+   else if (0==strcmp(argv[1], "Tau"))
+   {
+      for (int k=0; k<SOC_GRIDS; k++)
+      {
+         double tau_batt = batt->ecm->params.r1_tbl[k] * batt->ecm->params.c1_tbl[k];
+         double tau_fgic = fgic->ecm->params.r1_tbl[k] * fgic->ecm->params.c1_tbl[k];
+         double ratio = fabs((tau_batt-tau_fgic)/tau_batt);
+         printf("Batt_Tau[%d]=%lf, FGIC_Tau[%d]=%lf, error=%lf\n", k, tau_batt, k, tau_fgic, ratio) ;
       }
    }
    else
