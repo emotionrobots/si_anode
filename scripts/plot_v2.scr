@@ -1,9 +1,0 @@
-set dutycycle 0.75
-set period 1000 
-set load_type 1
-set I_on 0
-run to 1000
-set I_on 1 
-run until soc_batt <= 0 || soc_fgic <= 0 
-compare Tau
-

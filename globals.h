@@ -60,7 +60,7 @@
 #define HEAT_CAPACITY		(200.0)      	/* heat capacity J/°C */
 #define HEAT_TRANS_COEF		(0.10)       	/* heat transfer coef W/°C */
 
-#if 0
+#if 1
 #define DEFAULT_I_NOISE		(1.0e-5)   	/* default current noise in A */
 #define DEFAULT_V_NOISE		(1.0e-3)   	/* default voltage noise in V */
 #define DEFAULT_T_NOISE		(0.25)   	/* default temp noise in deg C */

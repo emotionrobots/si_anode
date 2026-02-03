@@ -360,25 +360,6 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    ecm->C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params.T_ref_C);
 
 
-#if 0
-   /* update chg state */
-   ecm->prev_chg_state = ecm->chg_state;
-   if (ecm->I > ecm->I_quit)
-   {
-      ecm->chg_state = DSG;
-      fgic->h_tbl_to_update = DSG;
-   }
-   else if (ecm->I < -ecm->I_quit)
-   {
-      ecm->chg_state = CHG;
-      fgic->h_tbl_to_update = CHG;
-   }
-   else
-   {
-      ecm->chg_state = REST;
-   }
-#endif
-
 
    /*
     *  Opportunistically learn R0, R1, C1
@@ -399,12 +380,14 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
        */
       if (ecm->prev_chg_state != REST) 
       {
+	 /* update dV_min and dV_max */
 	 if (fabs(dV_batt) > fgic->dV_max) fgic->dV_max = fabs(dV_batt);
 	 if (fabs(dV_batt) < fgic->dV_min) fgic->dV_min = fabs(dV_batt);
 
 	 if (fabs(dI) > fgic->dI_max) fgic->dI_max = fabs(dI);
 	 if (fabs(dI) < fgic->dI_min) fgic->dI_min = fabs(dI);
 
+	 /* only compute R0 if dI is large enough */
          if (fabs(dI) > ecm->I_quit)
 	 {
 	    /* adjust R0 to T_ref_C for proper table update */
@@ -431,7 +414,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
       if (fgic->learning) 
       {
 	 /* record VRC data if not full and dI and dV are large enough */ 
-         if (fgic->buf_len < VRC_BUF_SZ)
+         if ( (fgic->buf_len*dt < 5.0*ecm->R1*ecm->C1) || fgic->buf_len < VRC_BUF_SZ )
 	 {
 	    fgic->vrc_x[fgic->buf_len] = ecm->V_rc;
 	    fgic->vrc_y[fgic->buf_len] = dV_rc/dt;
@@ -462,7 +445,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 
 	    fgic->buf_len = 0;
 	    fgic->learning = false;
-	    printf("t=%lf\tlearned.  C1_fgic=%lf,  C1_batt=%lf\n", t, ecm->C1, fgic->batt->ecm->C1);
+	    printf("t=%lf\tlearned. buf_len=%d,  C1_fgic=%lf,  C1_batt=%lf\n", t, fgic->buf_len, ecm->C1, fgic->batt->ecm->C1);
          }
       } /* end if (fgic->learning)  */
    }
@@ -523,6 +506,8 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    return 0;
 
 _err_ret:
+   fgic->buf_len = 0; 
+   fgic->learning = false;
    return -1;
 }
 

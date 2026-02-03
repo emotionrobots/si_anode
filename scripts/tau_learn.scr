@@ -1,0 +1,10 @@
+set I_on 2 
+set dutycycle 0.5
+set period 1000 
+set load_type 1
+log start tau1.csv C1_batt C1_fgic
+run to 1000
+set I_on 0 
+compare Tau
+log stop
+plot tau1.csv
