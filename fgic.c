@@ -171,7 +171,7 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    
    fgic->ecm = (ecm_t *)malloc(sizeof(ecm_t));
    if (ecm_init(fgic->ecm, &g_fgic_flash_params, T0_C) != 0) goto _err_ret;
-   // fgic->ecm->soc = 0.5;  // set wrong initially
+   fgic->ecm->soc = 0.5;  // set wrong initially
    
    fgic->ecm->prev_V_batt = fgic->ecm->V_batt;
    fgic->ecm->prev_V_rc = fgic->ecm->V_rc;

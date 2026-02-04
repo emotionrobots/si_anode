@@ -10,6 +10,12 @@ This project runs a battery simulation that includes three entities:
 ![sim_model](docs/images/sim_model.png)
 
 
+## Install Prerequisit
+```
+sudo apt-get update
+sudo apt-get install git build-essential libsdl2-dev libsdl2-ttf-dev
+```
+
 ## Build
 ```
 make                # build 

@@ -932,7 +932,7 @@ int f_run_script(struct _menu *m, int argc, char **argv, void *p_usr)
    return 0;
 }
 
-
+#if 0
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *---------------------------------------------------------------------------------------------------------------------
@@ -964,6 +964,7 @@ int f_there(struct _menu *m, int argc, char **argv, void *p_usr)
    printf("f_there called\n");
    return 0;
 }
+#endif
 
 
 /*!
@@ -1018,6 +1019,7 @@ menu_t *app_menu_init()
    menu_t *m_compare = menu_create("compare", "compare fgic & batt ecm model", "compare", "", f_compare);
    menu_add_peer(m_root, m_compare);
 
+#if 0
    /* dummy placeholder commands */
    menu_t *m_cd = menu_create("cd", "cd command", "cd <here | there>", "", NULL);
    menu_add_peer(m_root, m_cd);
@@ -1027,7 +1029,7 @@ menu_t *app_menu_init()
 
    menu_t *m_there = menu_create("there", "there commands", "there-", "", f_there);
    menu_add_peer(m_here, m_there);
-
+#endif
    
    return m_root;
 }
