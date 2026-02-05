@@ -339,7 +339,7 @@ int f_log(struct _menu *m, int argc, char **argv, void *p_usr)
       /* print params names  */ 
       char *data_name = NULL;
       sim->logn = 0;
-      fprintf(sim->logfp, "t "); 
+      fprintf(sim->logfp, "t,"); 
       for (int n = 3; n < argc; n++)
       {
          bool found = false;
@@ -351,7 +351,7 @@ int f_log(struct _menu *m, int argc, char **argv, void *p_usr)
                if (n==argc-1)
                   fprintf(sim->logfp, "%s", sim->params[i].name); 
 	       else
-                  fprintf(sim->logfp, "%s ", sim->params[i].name); 
+                  fprintf(sim->logfp, "%s,", sim->params[i].name); 
 
 	       sim->logi[sim->logn++] = i;
 	       found = true;
@@ -394,7 +394,7 @@ int f_plot(struct _menu *m, int argc, char **argv, void *p_usr)
    char linebuf[MAX_LINE_SZ];
    char titlebuf[MAX_LINE_SZ];
    int nvars = 0;
-   const char delim[] = " \n";
+   const char delim[] = ",\n";
    scope_trace_desc_t trace[MAX_PARAMS];
    scope_plot_t *plot=NULL;
    SDL_Window *win = NULL;

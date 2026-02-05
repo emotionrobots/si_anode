@@ -770,7 +770,7 @@ int sim_update_log(sim_t *sim)
 
    if (sim != NULL && sim->logn > 0)
    {
-      fprintf(sim->logfp, "%lf ", sim->t); 
+      fprintf(sim->logfp, "%lf,", sim->t); 
       for (int i=0; i<sim->logn; i++)
       {
          int idx = sim->logi[i];
@@ -778,7 +778,7 @@ int sim_update_log(sim_t *sim)
          if (i == sim->logn-1)
             snprintf(fmt, sizeof(fmt), "%s", type);
          else
-            snprintf(fmt, sizeof(fmt), "%s ", type);
+            snprintf(fmt, sizeof(fmt), "%s,", type);
 
          if (0==strcmp(type, "%d")) 
             fprintf(sim->logfp, fmt, *(int *)sim->params[idx].value); 
