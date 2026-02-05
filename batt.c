@@ -52,7 +52,8 @@ batt_t *batt_create(flash_params_t *p, double T0_C)
  */
 int batt_update(batt_t *batt, double I, double T_amb, double t, double dt)
 {
-   return ecm_update(batt->ecm, I, T_amb, t, dt);
+   int rc = ecm_update(batt->ecm, I, T_amb, t, dt);
+   return rc; 
 }
 
 

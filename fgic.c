@@ -185,6 +185,7 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    fgic->V_meas = batt->ecm->V_batt + fgic->V_noise * ((double)rand()/(double)RAND_MAX-0.5);
    fgic->ecm->T_C = fgic->T_meas; 
 
+
    /* UKF setup */
    const int n_x = 3;	/* SOC, VRC, T */
    const int n_z = 2;	/* V, T */
@@ -359,7 +360,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    ecm_lookup_c1(ecm, soc, &C1);
    ecm->C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params.T_ref_C);
 
-
+   ecm->Tau = ecm->R1 * ecm->C1;
 
    /*
     *  Opportunistically learn R0, R1, C1
@@ -414,7 +415,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
       if (fgic->learning) 
       {
 	 /* record VRC data if not full and dI and dV are large enough */ 
-         if ( (fgic->buf_len*dt < 5.0*ecm->R1*ecm->C1) || fgic->buf_len < VRC_BUF_SZ )
+         if ( (fgic->buf_len*dt < 5.0*ecm->Tau) || fgic->buf_len < VRC_BUF_SZ )
 	 {
 	    fgic->vrc_x[fgic->buf_len] = ecm->V_rc;
 	    fgic->vrc_y[fgic->buf_len] = dV_rc/dt;
@@ -447,20 +448,20 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 	    fgic->learning = false;
 	    printf("t=%lf\tlearned. buf_len=%d,  C1_fgic=%lf,  C1_batt=%lf\n", t, fgic->buf_len, ecm->C1, fgic->batt->ecm->C1);
          }
-      } /* end if (fgic->learning)  */
+      } 
+      else   /* not learning */
+      {
+         fgic->buf_len = 0; 
+         fgic->learning = false;
+      }
    }
-   /* if not resting no learning */
-   else   
-   {
-      fgic->buf_len = 0; 
-      fgic->learning = false;
-   } 
+
 
 
    /* lookup V_oc given SOC */
    ecm_lookup_ocv(ecm, soc, &ecm->V_oc);
  
-
+#if 0
    /* update H if rest time long enough */
    if (ecm->chg_state == REST && fgic->rest_time >= fgic->min_rest)
    {
@@ -476,7 +477,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 		      t, H_meas, fgic->I_sum, I_avg, fgic->h_tbl_to_update);
 #endif
    }
-
+#endif
 
    /* read updated H */
    ecm_lookup_h(ecm, soc, &ecm->H);

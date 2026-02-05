@@ -1,0 +1,12 @@
+set I_on 10 
+set dutycycle 0.5
+set period 500
+set load_type 1
+log start tau.csv Tau_batt Tau_fgic
+run until soc_batt <= 0 || soc_fgic <= 0 
+set I_on -10 
+run until soc_batt >= 1 || soc_fgic >= 1 
+log stop
+plot tau.csv
+
+

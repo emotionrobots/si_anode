@@ -124,7 +124,8 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    ecm_lookup_r0(ecm, ecm->soc, &ecm->R0);
    ecm_lookup_r1(ecm, ecm->soc, &ecm->R1);
    ecm_lookup_c1(ecm, ecm->soc, &ecm->C1);
-
+   
+   ecm->Tau = ecm->C1 * ecm->R1;
 
    ecm->prev_chg_state = REST;
    ecm->chg_state = ecm->prev_chg_state;
@@ -317,6 +318,7 @@ int ecm_update(ecm_t *ecm, double I, double T_amb_C, double t, double dt)
     /* update V_batt */
     ecm->V_batt = (ecm->V_oc + ecm->H) - ecm->V_rc - ecm->I * ecm->R0;
 
+    ecm->Tau = ecm->C1 * ecm->R1;
 
     return rc;
 }

@@ -22,6 +22,7 @@ typedef struct
 
    /* Model paramters */
    double R0, R1, C1;
+   double Tau;
 
    /* Model states */
    double V_batt;				/* V_batt */

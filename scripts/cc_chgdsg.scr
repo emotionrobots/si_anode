@@ -1,0 +1,10 @@
+set I_sys 10 
+set load_type 0
+log start ccv.csv soc_batt V_batt soc_fgic V_fgic
+run until soc_batt <= 0 || soc_fgic <= 0 
+set I_sys -10 
+run until soc_batt >= 1 || soc_fgic >= 1 
+log stop
+plot ccv.csv
+
+

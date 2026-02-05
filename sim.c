@@ -97,6 +97,10 @@ int params_init(sim_t *sim)
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->batt->ecm->C1;
 
+   sim->params[i].name = "Tau_batt";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->batt->ecm->Tau;
+
    sim->params[i].name = "Qmax_batt";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->batt->ecm->Q_Ah;
@@ -220,6 +224,10 @@ int params_init(sim_t *sim)
    sim->params[i].name = "H_fgic";
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->fgic->ecm->H;
+
+   sim->params[i].name = "Tau_fgic";
+   sim->params[i].type = "%lf";
+   sim->params[i++].value= &sim->fgic->ecm->Tau;
 
    sim->params[i].name = "R0_fgic";
    sim->params[i].type = "%lf";
