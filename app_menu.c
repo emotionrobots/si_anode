@@ -379,6 +379,103 @@ int f_log(struct _menu *m, int argc, char **argv, void *p_usr)
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
+ *  @fn		int split_csv_line(char *line, char **out, int max_out) 
+ *
+ *  @brief	Read a CSV line and separate out the fields
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static
+int split_csv_line(char *line, char **out, int max_out)
+{
+    // Simple CSV splitter (no quotes) good enough for numeric logs
+    int n = 0;
+    char *p = line;
+    while (p && *p && n < max_out)
+    {
+        // trim leading spaces
+        while (*p == ' ' || *p == '\t') p++;
+        out[n++] = p;
+        char *comma = strchr(p, ',');
+        if (!comma) break;
+        *comma = '\0';
+        p = comma + 1;
+    }
+
+    // trim trailing newline/spaces for each token
+    for (int i = 0; i < n; i++)
+    {
+        char *s = out[i];
+        size_t L = strlen(s);
+        while (L && (s[L-1] == '\n' || s[L-1] == '\r' || s[L-1] == ' ' || s[L-1] == '\t')) {
+            s[L-1] = '\0';
+            L--;
+        }
+    }
+    return n;
+}
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn		SDL_Color palette(int i)
+ *
+ *  @brief	Returns the color palette of a trace
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static
+SDL_Color palette(int i)
+{
+    static SDL_Color p[] = {
+        {255,  80,  80, 255},
+        { 80, 255,  80, 255},
+        { 80, 160, 255, 255},
+        {255, 200,  80, 255},
+        {220,  80, 255, 255},
+        { 80, 255, 220, 255},
+    };
+    return p[i % (int)(sizeof(p)/sizeof(p[0]))];
+}
+
+
+/*!
+ *--------------------------------------------------------------------------------------------------------------------- 
+ *
+ *  @fn		bool trace_name_valid(sim_t *sim, char *trace_name)
+ *
+ *  @brief	Check if trace name is valid
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static 
+bool trace_name_valid(sim_t *sim, char *trace_name)
+{
+   bool valid = false;
+
+   /* check if trace valid */
+   for (int k=0; k < sim->params_sz; k++)
+   {
+      if (0==strcmp(trace_name, sim->params[k].name))
+      {
+         if (0==strcmp("%d", sim->params[k].type)  ||
+             0==strcmp("%ld", sim->params[k].type) ||
+             0==strcmp("%f", sim->params[k].type)  ||
+             0==strcmp("%lf", sim->params[k].type))
+         {
+            valid = true;
+         }
+         break;
+      }
+   }
+
+   return valid;
+}
+
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
  *  @fn		int f_plot(struct _menu *m, int argc, char **argv, void *p_usr)
  *
  *  @brief	Plot a saved CSV file
@@ -391,247 +488,116 @@ static
 int f_plot(struct _menu *m, int argc, char **argv, void *p_usr)
 {
    int rc = 0;
-   char linebuf[MAX_LINE_SZ];
-   char titlebuf[MAX_LINE_SZ];
-   int nvars = 0;
-   const char delim[] = ",\n";
-   scope_trace_desc_t trace[MAX_PARAMS];
-   scope_plot_t *plot=NULL;
+   scope_plot_t *p = NULL;
    SDL_Window *win = NULL;
    SDL_Renderer *ren = NULL;
 
 
+   // Get sim pointer 
    if (m==NULL || p_usr==NULL || argv==NULL) return -1;
    sim_t *sim = (sim_t *)p_usr;
+   if (argc != 2) { rc = -1; goto _err_ret; }
 
-   if (argc != 2)
+   /* Setup data labels */
+   const char *csv_path = argv[1];
+   FILE *f = fopen(csv_path, "r");
+   if (!f) { rc = -2; goto _err_ret; }
+
+   // Read first line and parse data labels
+   char line[4096];
+   if (!fgets(line, sizeof(line), f)) { rc = -3; goto _err_ret; }
+
+   char *cols[64] = {0};
+   int ncol = split_csv_line(line, cols, 64);
+   if (ncol < 2) { rc = -4; goto _err_ret; }
+
+   // Setup X labels
+   const char *x_label = cols[0];
+   int trace_count = ncol - 1;
+
+   // Init scope trace object 
+   scope_trace_desc_t tr[MAX_PARAMS];
+   memset(tr, 0, sizeof(scope_trace_desc_t));
+   for (int i = 0; i < trace_count; i++) 
    {
-      rc = -1;
-      goto _err_ret;
+      /* check if trace valid */
+      if (trace_name_valid(sim, cols[i+1]))
+      {
+         tr[i].name = str_dup(cols[i+1]); 
+         tr[i].color = palette(i);
+      }
    }
 
-   /* init scope trace object */
-   memset(trace, 0, sizeof(scope_trace_desc_t));
-   for (int k=0; k<MAX_PARAMS; k++)
+
+   // Init SDL renderer
+   if (SDL_Init(SDL_INIT_VIDEO) != 0) { rc = -5; goto _err_ret; }
+   win = SDL_CreateWindow("ScopeTrace", 
+		          SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                          1100, 650, SDL_WINDOW_SHOWN);
+   if (!win) { rc = -6; goto _err_ret; }
+
+   ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+   if (!ren) { rc = -7; goto _err_ret; }
+
+
+   // Create plot object with default config
+   scope_plot_cfg_t cfg = scope_plot_default_cfg();
+   p = scope_plot_create(win, ren, trace_count, tr, &cfg);
+   if (!p) { rc = -8; goto _err_ret; }
+
+   // Set plot title and X label
+   scope_plot_set_title(p, "ScopeTrace");
+   scope_plot_set_x_label(p, x_label);
+
+   // Read data into plot one line at a time.  Data buffer overflows at 40000 data ponts
+   double x_min = 0.0, x_max = 1.0;
+   bool first = true;
+   double *y = (double*)calloc((size_t)trace_count, sizeof(double));
+   if (!y) { rc = -9; goto _err_ret; }
+   while (fgets(line, sizeof(line), f)) 
    {
-      trace[k].name = "<no_name>";
-      if (k==0)
+      if (line[0] == '\0' || line[0] == '\n' || line[0] == '\r') continue;
+
+      char *tok[64] = {0};
+      int nt = split_csv_line(line, tok, 64);
+      if (nt != ncol) continue; // skip malformed rows
+
+      double x = strtod(tok[0], NULL);
+      for (int i = 0; i < trace_count; i++) y[i] = strtod(tok[i+1], NULL);
+
+      if (first) { x_min = x_max = x; first = false; }
+      else { if (x < x_min) x_min = x; if (x > x_max) x_max = x; }
+
+      scope_plot_push(p, x, y);
+   }
+   fclose(f);
+
+   // Render plot
+   scope_plot_set_x_range(p, x_min, x_max);
+   scope_plot_render(p);
+   SDL_RenderPresent(ren);
+
+   // Event loop
+   bool quit = false;
+   while (!quit) 
+   {
+      SDL_Event e;
+      while (SDL_PollEvent(&e)) 
       {
-         trace[k].color.r = 255; 
-         trace[k].color.g = 0;
-         trace[k].color.b = 0;
+         if (e.type == SDL_QUIT) quit = true;
+         if (e.type == SDL_KEYDOWN) {
+             SDL_Keycode k = e.key.keysym.sym;
+             if (k == SDLK_ESCAPE || k == SDLK_q) quit = true;
+         }
       }
-      else if (k==1)
-      {
-         trace[k].color.r = 0; 
-         trace[k].color.g = 255;
-         trace[k].color.b = 0;
-      }
-      else if (k==2)
-      {
-         trace[k].color.r = 0; 
-         trace[k].color.g = 0;
-         trace[k].color.b = 255;
-      }
-      else if (k==3)
-      {
-         trace[k].color.r = 128; 
-         trace[k].color.g = 32;
-         trace[k].color.b = 80;
-      }
-      else if (k==4)
-      {
-         trace[k].color.r = 80; 
-         trace[k].color.g = 128;
-         trace[k].color.b = 128;
-      }
-      else if (k==5)
-      {
-         trace[k].color.r = 180; 
-         trace[k].color.g = 20;
-         trace[k].color.b = 100;
-      }
-      else 
-      {
-         trace[k].color.r = 128; 
-         trace[k].color.g = 128;
-         trace[k].color.b = 128;
-      }
-      trace[k].color.a = 255;
+      SDL_Delay(16);
    }
 
-   FILE *fp = NULL;
-   if ((strlen(argv[1]) < FN_LEN) && (fp = fopen(argv[1], "r")) != NULL)
-   {
-      /* create SDL window */
-      if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0)
-      { 
-         win = SDL_CreateWindow(
-            "scope_plot demo (SDL2)",
-            SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-            1100, 650,
-            SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
-         );
 
-         if (!win) 
-	 {
-            rc = -4;
-	    goto _err_ret;
-         }
-
-         ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-         if (!ren) 
-	 {
-            rc = -5;
-	    goto _err_ret;
-         }
-
-
-         /* read column titles */
-         if (fgets(titlebuf, sizeof(titlebuf), fp) != NULL)
-         {
-            /* read  't' */
-            char *token = strtok(titlebuf, delim);
-            if (0!=strcmp(token, "t")) 
-	    {
-	       rc = -6;
-	       goto _err_ret;
-            }
-
-	    /* Process rest of the title line */ 
-	    nvars = 0;
-	    while ( (token = strtok(NULL, delim)) != NULL)
-	    {
-               bool found = false;
-               bool valid = false;
-	       
-	       /* check if trace valid */
-               for (int k=0; k < sim->params_sz; k++)
-	       {
-		  if (0==strcmp(token, sim->params[k].name))
-		  {
-		     found = true;
-		     if (0==strcmp("%d", sim->params[k].type) ||
-		         0==strcmp("%ld", sim->params[k].type) ||  
-		         0==strcmp("%f", sim->params[k].type) ||  
-		         0==strcmp("%lf", sim->params[k].type))
-		     {
-                        trace[nvars++].name = token;
-			valid = true;
-		     }
-		     break;
-		  }
-               }
-
-	       if (!found || !valid)
-	       {
-                  printf("error: found =%d or invalid=%d\n", found, valid);
-		  rc = -7;
-		  goto _err_ret; 
-	       }
-	       
-	    } // while ( (token = strtok(NULL, delim)) != NULL)
-	      
-	 } // if (fgets(titlebuf, sizeof(titlebuf), fp) != NULL)
-
-	 /* setup config */
-	 scope_plot_cfg_t cfg = scope_plot_default_cfg();
-	 cfg.max_points = MAX_PLOT_PTS;
-	 cfg.font_px = 14;
-
-         plot = scope_plot_create(win, ren, nvars, trace, &cfg);
-         if (plot==NULL) 
-	 {
-            rc = -8;
-	    goto _err_ret;
-         }
-
-         scope_plot_set_title(plot, "Signal Scope");
-
-	 SDL_Color bkg_color;
-	 bkg_color.r=12;
-	 bkg_color.b=12; 
-	 bkg_color.g=16; 
-	 bkg_color.a=255;
-
-         scope_plot_set_background(plot, bkg_color);
- 
-         double x = 0;
-	 double xmin=1e10, xmax=-1e10;
-         double *y = (double *)calloc(nvars, sizeof(double));
-	 char *endptr;
-         while (fgets(linebuf, sizeof(linebuf), fp) != NULL)
-	 {
-            /* get x (or t) */
-            char *token = strtok(linebuf, delim);
-	    x = strtod(token, &endptr);
-            if (x < xmin) xmin = x;
-            if (x > xmax) xmax = x;
-
-	    /* get y */
-	    int i = 0;
-	    bool done = false;
-            while (!done)
-	    {
-	       token = strtok(NULL, delim); 
-	       if (token != NULL)
-	       {
-                  if (util_is_numeric(token))
-                     y[i] = strtod(token, &endptr);
-                  else
-                     y[i] = 0;
-                  i++;
-	       }
-	       else
-	       {
-                  done = true;
-	       }
-	    } 
-
-	    if (i != nvars)
-	    {
-               printf("error: parsing i=%d nvar=%d\n", i, nvars);
-	       free(y);
-	       rc= -1;
-	       goto _err_ret;
-            }
-	    scope_plot_push(plot, x, y);
-
-	 } // while (fgets(linebuf, sizeof(linebuf), fp) != NULL)
-         free(y); 
-	   
-	  
-	 scope_plot_set_x_range(plot, xmin, xmax); 
-	 scope_plot_render(plot);
-	 SDL_RenderPresent(ren);
-
-
-	 /* pause graph to wait for key */
-	 bool done = false;
-         SDL_Event e;	
-	 while (!done)
-	 {
-            SDL_PollEvent(&e); 
-            if (e.type == SDL_QUIT) 
-	    {
-	       rc = 0;
-	       goto _err_ret;
-	    }
-	    else if (e.type == SDL_KEYDOWN) 
-	    {
-               done = e.key.keysym.sym == SDLK_ESCAPE;
-	    }
-	 }
-
-
-      } // if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0) 
-
-   } // if ((strlen(argv[1]) < FN_LEN) && (fp = fopen(argv[1], "r")) != NULL)
-     
 _err_ret:
-   if (plot != NULL) scope_plot_destroy(plot);
+   if (p != NULL) scope_plot_destroy(p);
    if (ren != NULL) SDL_DestroyRenderer(ren);
-   if (ren != NULL) SDL_DestroyWindow(win);
+   if (win != NULL) SDL_DestroyWindow(win);
    SDL_Quit();
 
    return rc;
