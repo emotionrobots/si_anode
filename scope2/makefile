@@ -4,12 +4,12 @@ LDFLAGS ?=
 SDL_CFLAGS := $(shell pkg-config --cflags sdl2 SDL2_ttf)
 SDL_LIBS   := $(shell pkg-config --libs sdl2 SDL2_ttf)
 
-OBJS_SCOPE = scope_plot_dual.o
+OBJS_SCOPE = scope_plot.o
 
 all: test_scope_csv test_scope_stream
 
-scope_plot_dual.o: scope_plot_dual.c scope_plot_dual.h
-	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c -o $@ scope_plot_dual.c
+scope_plot.o: scope_plot.c scope_plot.h
+	$(CC) $(CFLAGS) $(SDL_CFLAGS) -c -o $@ scope_plot.c
 
 test_scope_csv: test_scope_csv.c $(OBJS_SCOPE)
 	$(CC) $(CFLAGS) $(SDL_CFLAGS) -o $@ test_scope_csv.c $(OBJS_SCOPE) $(SDL_LIBS) -lm

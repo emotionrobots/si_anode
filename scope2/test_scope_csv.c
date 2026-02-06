@@ -1,12 +1,16 @@
-/*
- * test_scope_csv.c
+/*!
+ *=====================================================================================================================
  *
- * Demonstrates reading a CSV that matches the format of t11.csv:
- *   first row: labels (x_label,y1_label,y2_label,...)
- *   subsequent rows: numeric values
+ *  @file	test_scope_csv.c
  *
- * Keys:
- *   ESC / Q : quit
+ *  @brief	Demonstrates reading a CSV that matches the format of t11.csv:
+ *   			first row: labels (x_label,y1_label,y2_label,...)
+ *   			subsequent rows: numeric values
+ *
+ *  		Keys:
+ *   		ESC / Q : quit
+ *
+ *=====================================================================================================================
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,8 +18,18 @@
 #include <stdbool.h>
 #include <SDL2/SDL.h>
 
-#include "scope_plot_dual.h"
+#include "scope_plot.h"
 
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn		void die(const char *msg) 
+ *
+ *  @brief	Convenient die function
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
 static 
 void die(const char *msg) 
 {
@@ -24,6 +38,15 @@ void die(const char *msg)
 }
 
 
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn		int split_csv_line(char *line, char **out, int max_out) 
+ *
+ *  @brief	Read a CSV line and separate out the fields
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
 static 
 int split_csv_line(char *line, char **out, int max_out) 
 {
@@ -55,7 +78,15 @@ int split_csv_line(char *line, char **out, int max_out)
 }
 
 
-
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn		SDL_Color palette(int i) 
+ *
+ *  @brief	Returns the color palette of a trace
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
 static 
 SDL_Color palette(int i) 
 {
@@ -72,6 +103,13 @@ SDL_Color palette(int i)
 
 
 
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *   Main function
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
 int main(int argc, char **argv) 
 {
     const char *csv_path = (argc >= 2) ? argv[1] : "t11.csv";
@@ -81,47 +119,50 @@ int main(int argc, char **argv)
     char line[4096];
     if (!fgets(line, sizeof(line), f)) die("CSV empty");
 
-    // Parse header labels
+    // Read and parse data labels
     char *cols[64] = {0};
     int ncol = split_csv_line(line, cols, 64);
     if (ncol < 2) die("CSV must have at least 2 columns");
 
+    // Setup X labels
     const char *x_label = cols[0];
     int trace_count = ncol - 1;
 
+    // Init Y traces 
     scope_trace_desc_t *tr = (scope_trace_desc_t*)calloc((size_t)trace_count, sizeof(*tr));
     if (!tr) die("OOM traces");
-
     for (int i = 0; i < trace_count; i++) 
     {
         tr[i].name = str_dup(cols[i+1]); // freed by OS on exit; ok for unit test
         tr[i].color = palette(i);
     }
 
+    // Init SDL renderer
     if (SDL_Init(SDL_INIT_VIDEO) != 0) die(SDL_GetError());
-
-
     SDL_Window *win = SDL_CreateWindow("scope_plot CSV dual-Y demo",
                                        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                        1100, 650, SDL_WINDOW_SHOWN);
     if (!win) die(SDL_GetError());
 
-
     SDL_Renderer *ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!ren) die(SDL_GetError());
 
 
+    // Create plot object with default config
     scope_plot_cfg_t cfg = scope_plot_default_cfg();
     scope_plot_t *p = scope_plot_create(win, ren, trace_count, tr, &cfg);
     if (!p) die("scope_plot_create failed");
 
+
+    // Set plot title and X label
     scope_plot_set_title(p, "CSV: t11.csv (dual Y auto-assign)");
     scope_plot_set_x_label(p, x_label);
 
-    // Read data into plot
+
+    // Read data into plot one line at a time
+    // Data buffer overflows at 40000 data ponts
     double x_min = 0.0, x_max = 1.0;
     bool first = true;
-
     double *y = (double*)calloc((size_t)trace_count, sizeof(double));
     if (!y) die("OOM y");
 
