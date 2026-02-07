@@ -154,13 +154,14 @@ int util_nearest_soc_idx(const double *grid, int n, double soc)
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		int util_update_h_tbl(double *tbl, int n, double soc, double H)
+ *  @fn		int util_update_tbl(double *tbl, double *soc_tbl, int n, double soc, double val)
  *
- *  @brief	Update H table entry indexed by SOC.  
+ *  @brief	Update table entry indexed by SOC. Adjacent entries to left and right of SOC are 
+ *              proportionally adjusted.
  *
  *---------------------------------------------------------------------------------------------------------------------
  */
-int util_update_h_tbl(double *h_tbl, double *soc_tbl, int n, double soc, double H)
+int util_update_tbl(double *tbl, double *soc_tbl, int n, double soc, double val)
 {
    /* Find bookends indices where soc sits in between */
    int left = 0, right = 0;
@@ -175,21 +176,21 @@ int util_update_h_tbl(double *h_tbl, double *soc_tbl, int n, double soc, double 
 
    /* 
     * Update table. Closer soc is to the indexed entry, higher 
-    * the influence H has on that entry's new value 
+    * the influence val has on that entry's new value 
     */
    if (left == n-1)
    {
-      h_tbl[left] = H;
+      tbl[left] = val;
    }
    else
    {  
       right = left+1;
       double denom = soc_tbl[right] - soc_tbl[left];
       double alpha = (soc-soc_tbl[left])/denom;
-      h_tbl[left] = (1.0-alpha)*H + alpha*h_tbl[left];
+      tbl[left] = (1.0-alpha)*val + alpha*tbl[left];
 
       double beta = (soc_tbl[right]-soc)/denom;
-      h_tbl[right] = (1.0-beta)*H + beta*h_tbl[right];
+      tbl[right] = (1.0-beta)*val + beta*tbl[right];
    }
 
    // printf("soc=%lf, left=%d, right=%d\n", soc, left, right);

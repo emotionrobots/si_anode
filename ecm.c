@@ -318,8 +318,14 @@ int ecm_update(ecm_t *ecm, double I, double T_amb_C, double t, double dt)
     /* update V_batt */
     ecm->V_batt = (ecm->V_oc + ecm->H) - ecm->V_rc - ecm->I * ecm->R0;
 
+    /* update Tau */
     ecm->Tau = ecm->C1 * ecm->R1;
 
+    /* update previous values */
+    ecm->prev_I = ecm->I;
+    ecm->prev_V_batt = ecm->V_batt;
+    ecm->prev_V_rc = ecm->V_rc;
+    
     return rc;
 }
 
