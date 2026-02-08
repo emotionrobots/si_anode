@@ -170,13 +170,13 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    fgic->dI_min = 1e6;
    fgic->ah = ALPHA_H;
    fgic->I_sum = 0.0;
-   fgic->h_tbl_to_update = DSG;
+   fgic->h_dir = REST;
 
    fgic->batt = batt;
    
    fgic->ecm = (ecm_t *)malloc(sizeof(ecm_t));
    if (ecm_init(fgic->ecm, &g_fgic_flash_params, T0_C) != 0) goto _err_ret;
-   fgic->ecm->soc = 0.5;  // set wrong initially
+   //fgic->ecm->soc = 0.5;  // set wrong initially
    
    fgic->ecm->prev_V_batt = fgic->ecm->V_batt;
    fgic->ecm->prev_V_rc = fgic->ecm->V_rc;
@@ -323,8 +323,8 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    z_meas[1] = fgic->T_meas;
 
    double u[2];
-   u[0] = ecm->I;         // ecm->I updated by ecm_update() to be equal to fgic->I_meas
-   u[1] = ecm->T_amb_C;   // same for ecm->T_amb_C
+   u[0] = fgic->I_meas;         // ecm->I updated by ecm_update() to be equal to fgic->I_meas
+   u[1] = T_amb_C;              // same for ecm->T_amb_C
 
    /* Predict x given u */
    if (ukf_predict(fgic->ukf, u, dt, (void *)fgic) != UKF_OK) goto _err_ret;
@@ -432,36 +432,40 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    }
 
 
-#if 0
-   /* update H if rest time long enough */
-   if (ecm->chg_state == REST && fgic->rest_time >= fgic->min_rest)
+#if 1
+   if (ecm->chg_state == REST && ecm->prev_chg_state != REST) 
+      fgic->h_dir = ecm->prev_chg_state;
+
+   if (ecm->chg_state == REST)
    {
-      double I_avg = fgic->I_sum*dt/fgic->min_rest;
-      double H_meas = ecm->V_batt - ecm->V_oc + ecm->V_rc + I_avg*ecm->R0;
-
-      if (fgic->h_tbl_to_update == CHG) 
-         util_update_tbl(ecm->params.h_chg_tbl, ecm->params.soc_tbl, SOC_GRIDS, soc, H_meas);
-      else if (fgic->h_tbl_to_update == DSG)
-         util_update_tbl(ecm->params.h_dsg_tbl, ecm->params.soc_tbl, SOC_GRIDS, soc, H_meas);
-#if 0
-      printf("rest-time reached: t=%lf, H_meas=%lf, I_sum=%lf, I_avg=%lf, tbl=%d\n", 
-		      t, H_meas, fgic->I_sum, I_avg, fgic->h_tbl_to_update);
-#endif
+      if (fgic->rest_time > 5.0*ecm->Tau)
+      {
+         //double H = ecm->V_batt - ecm->V_oc + ecm->V_rc + ecm->I*ecm->R0;
+         double H = fgic->V_meas - ecm->V_oc + ecm->V_rc + ecm->I*ecm->R0;
+         if (fgic->h_dir == CHG) 
+	 {
+            util_update_tbl(ecm->params.h_chg_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, H);
+	    printf("learned H_chg at t=%lf H=%lf\n", t, H);
+	 }
+         else if (fgic->h_dir == DSG)
+	 {
+            util_update_tbl(ecm->params.h_dsg_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, H);
+	    printf("learned H_dsg at t=%lf H=%lf\n", t, H);
+	 }
+	 else
+	 {
+	    goto _err_ret; 
+	 }
+      }
+      fgic->I_sum += ecm->I;
+      fgic->rest_time += dt;
    }
-#endif
-
-
-   /* check if fgic->rest_time needs to reset */
-   if (ecm->chg_state != REST)
+   else
    {
       fgic->rest_time = 0.0;
       fgic->I_sum = 0.0;
    }
-   else if (fgic->rest_time < fgic->min_rest)
-   {
-      fgic->I_sum += ecm->I;
-      fgic->rest_time += dt;
-   }
+#endif
 
    return 0;
 

@@ -73,6 +73,7 @@ int ecm_lookup_r1(const ecm_t *ecm, double soc, double *val);
 int ecm_lookup_c1(const ecm_t *ecm, double soc, double *val);
 int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C);
 int ecm_update(ecm_t *ecm, double I, double T_amb, double t, double dt);
+void ecm_update_delta(ecm_t *ecm);
 void ecm_cleanup(ecm_t *ecm);
 
 

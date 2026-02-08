@@ -36,6 +36,8 @@
 #define MAX_PLOT_PTS		(200000)	/* max number of string-enabled parameters */
 #define DEFAULT_H_CHG		(0.02)		/* default OCV chg hysteresis */
 #define DEFAULT_H_DSG		(-0.02)		/* default OCV dsg hysteresis */
+#define DEFAULT2_H_CHG		(0.03)		/* default OCV chg hysteresis */
+#define DEFAULT2_H_DSG		(-0.03)		/* default OCV dsg hysteresis */
 
 #define BATT_H_DSG_TBL		NMC_H_DSG_TBL	/* H_DSG table */
 #define BATT_H_CHG_TBL		NMC_H_CHG_TBL	/* H_CHG table */
@@ -44,8 +46,8 @@
 #define FGIC_H_DSG_TBL		ZERO_H_DSG_TBL	/* H_DSG table */
 #define FGIC_H_CHG_TBL		ZERO_H_CHG_TBL	/* H_CHG table */
 #else
-#define FGIC_H_DSG_TBL		NMC_H_DSG_TBL	/* H_DSG table */
-#define FGIC_H_CHG_TBL		NMC_H_CHG_TBL	/* H_CHG table */
+#define FGIC_H_DSG_TBL		NMC2_H_DSG_TBL	/* H_DSG table */
+#define FGIC_H_CHG_TBL		NMC2_H_CHG_TBL	/* H_CHG table */
 #endif
 
 #define OCV_TBL			NMC_OCV_TBL	/* OCV table */
@@ -60,7 +62,7 @@
 #define HEAT_CAPACITY		(200.0)      	/* heat capacity J/°C */
 #define HEAT_TRANS_COEF		(0.10)       	/* heat transfer coef W/°C */
 
-#if 1
+#if 0
 #define DEFAULT_I_NOISE		(1.0e-5)   	/* default current noise in A */
 #define DEFAULT_V_NOISE		(1.0e-3)   	/* default voltage noise in V */
 #define DEFAULT_T_NOISE		(0.25)   	/* default temp noise in deg C */

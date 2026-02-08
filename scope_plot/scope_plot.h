@@ -1,5 +1,14 @@
-#ifndef SCOPE_PLOT_H
-#define SCOPE_PLOT_H
+/*!
+ *=====================================================================================================================
+ * 
+ *  @file 	scope_plot.h
+ *
+ *  @brief	Scope header
+ *
+ *=====================================================================================================================
+ */
+#ifndef __SCOPE_PLOT_H__
+#define __SCOPE_PLOT_H__
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -11,12 +20,16 @@ extern "C" {
 
 typedef struct scope_plot scope_plot_t;
 
-typedef struct {
+typedef struct 
+{
     const char *name;      // legend label
     SDL_Color   color;     // trace color
-} scope_trace_desc_t;
+} 
+scope_trace_desc_t;
 
-typedef struct {
+
+typedef struct 
+{
     SDL_Color background;
     SDL_Color grid_major;
     SDL_Color grid_minor;
@@ -38,14 +51,18 @@ typedef struct {
 
     const char *ttf_path;  // font path (e.g., /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf)
     int font_px;           // e.g., 14
-} scope_plot_cfg_t;
+} 
+scope_plot_cfg_t;
 
 scope_plot_cfg_t scope_plot_default_cfg(void);
 
-/**
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
  * Create a plot with N traces.
  * - window/renderer are owned by the caller (plot does not destroy them).
  * - plot owns its internal buffers + font resources.
+ *---------------------------------------------------------------------------------------------------------------------
  */
 scope_plot_t *scope_plot_create(SDL_Window *win,
                                 SDL_Renderer *ren,
@@ -55,28 +72,62 @@ scope_plot_t *scope_plot_create(SDL_Window *win,
 
 void scope_plot_destroy(scope_plot_t *p);
 
-/** Set the x-axis range (NOT auto-scaled). */
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ * Set the x-axis range (NOT auto-scaled). 
+ *---------------------------------------------------------------------------------------------------------------------
+ */
 void scope_plot_set_x_range(scope_plot_t *p, double x_min, double x_max);
 
-/** Optional: set plot area title shown top-left (may be NULL). */
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ * Optional: set plot area title shown top-left (may be NULL). 
+ *---------------------------------------------------------------------------------------------------------------------
+ */
 void scope_plot_set_title(scope_plot_t *p, const char *title);
 
-/** Background color setter (overrides cfg background). */
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ * Optional: set x-axis label shown centered below the axis (may be NULL). 
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+void scope_plot_set_x_label(scope_plot_t *p, const char *x_label);
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ * Background color setter (overrides cfg background). 
+ *---------------------------------------------------------------------------------------------------------------------
+ */
 void scope_plot_set_background(scope_plot_t *p, SDL_Color bg);
 
-/**
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
  * Push one sample:
  * - x is the independent variable
  * - y[] must have trace_count elements
+ *---------------------------------------------------------------------------------------------------------------------
  */
 bool scope_plot_push(scope_plot_t *p, double x, const double *y);
 
-/** Render the plot into the current renderer target. */
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ * Render the plot into the current renderer target. 
+ *---------------------------------------------------------------------------------------------------------------------
+ */
 void scope_plot_render(scope_plot_t *p);
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *  Duplicate string
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+char *str_dup(const char *s);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif // __SCOPE_PLOT_H__
 

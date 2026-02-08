@@ -1,0 +1,10 @@
+set I_on 10 
+set dutycycle 0.5
+set period 100
+set load_type 1
+log start h.csv I_fgic Tau_fgic H_batt H_fgic 
+run to 100 
+log stop
+plot h.csv
+
+

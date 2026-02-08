@@ -55,7 +55,7 @@ typedef struct {
    double V_oc_est;			// V_oc estimate from CCV 
    double ah;                           // hysteresis decay rate 
    double I_sum;                        // REST current sum 
-   int h_tbl_to_update;                 // H table to update
+   int h_dir;                           // H table to update
 }
 fgic_t;
 

@@ -298,10 +298,8 @@ int ecm_update(ecm_t *ecm, double I, double T_amb_C, double t, double dt)
     ecm->T_C += dt * (powerloss - ecm->ht * (ecm->T_C - ecm->T_amb_C)) / ecm->Cp;
 
 
-    /* Track charging state for hysteresis sign */
     ecm->prev_chg_state = ecm->chg_state;
-
-
+    
     /* update chg state -- must be before update H */
     if (ecm->I > ecm->I_quit)
        ecm->chg_state = DSG; 		
@@ -321,12 +319,25 @@ int ecm_update(ecm_t *ecm, double I, double T_amb_C, double t, double dt)
     /* update Tau */
     ecm->Tau = ecm->C1 * ecm->R1;
 
-    /* update previous values */
-    ecm->prev_I = ecm->I;
-    ecm->prev_V_batt = ecm->V_batt;
-    ecm->prev_V_rc = ecm->V_rc;
-    
+    ecm_update_delta(ecm);
+
     return rc;
 }
 
+
+/*! 
+ *--------------------------------------------------------------------------------------------------------------------- 
+ *
+ *  @fn		void ecm_update_delta(ecm_t *ecm)
+ * 
+ *  @brief	update previous values 
+ *
+ *--------------------------------------------------------------------------------------------------------------------- 
+ */
+void ecm_update_delta(ecm_t *ecm)
+{
+    ecm->prev_I = ecm->I;
+    ecm->prev_V_batt = ecm->V_batt;
+    ecm->prev_V_rc = ecm->V_rc;
+}
 
