@@ -316,6 +316,45 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 
 
    //---------------------------------------------------
+   //  update H before UKF adjustment
+   //---------------------------------------------------
+#if 1
+   if (ecm->chg_state == REST && ecm->prev_chg_state != REST)
+      fgic->h_dir = ecm->prev_chg_state;
+
+   if (ecm->chg_state == REST)
+   {
+      if (fgic->rest_time > 5.0*ecm->Tau)
+      {
+         double H = fgic->V_meas - ecm->V_oc + ecm->V_rc + ecm->I*ecm->R0;
+         if (fgic->h_dir == CHG)
+         {
+            util_update_tbl(ecm->params.h_chg_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, H);
+            printf("learned H_chg at t=%lf H=%lf\n", t, H);
+         }
+         else if (fgic->h_dir == DSG)
+         {
+            util_update_tbl(ecm->params.h_dsg_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, H);
+            printf("learned H_dsg at t=%lf H=%lf\n", t, H);
+         }
+         else
+         {
+            goto _err_ret;
+         }
+      }
+      fgic->I_sum += ecm->I;
+      fgic->rest_time += dt;
+   }
+   else
+   {
+      fgic->rest_time = 0.0;
+      fgic->I_sum = 0.0;
+   }
+#endif
+
+
+#if 0
+   //---------------------------------------------------
    //  update battery state with UKF  
    //---------------------------------------------------
    double z_meas[2];
@@ -350,8 +389,11 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    ecm->Tau = ecm->R1 * ecm->C1;
 
    ecm_lookup_ocv(ecm, ecm->soc, &ecm->V_oc);
-   ecm_lookup_h(ecm, ecm->soc, &ecm->H);
 
+   ecm_lookup_h(ecm, ecm->soc, &ecm->H);
+   
+   ecm->V_batt = (ecm->V_oc + ecm->H) - ecm->V_rc - ecm->I * ecm->R0;
+#endif
 
    //---------------------------------------------------
    //  opportunistically learn R0, R1, C1
@@ -414,7 +456,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
                printf("error: linfit: %s\n", linfit_status_str(s));
 	       goto _err_ret; 
 	    }
-	    C1_est = -1.0/(r.slope*R1);
+	    C1_est = -1.0/(r.slope*ecm->R1);
 	    C1_est = util_temp_unadj(C1_est, ecm->Ea_C1, ecm->T_C, ecm->params.T_ref_C);
 
 	    /* update C1 table */
@@ -432,7 +474,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    }
 
 
-#if 1
+#if 0
    if (ecm->chg_state == REST && ecm->prev_chg_state != REST) 
       fgic->h_dir = ecm->prev_chg_state;
 
@@ -440,7 +482,6 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    {
       if (fgic->rest_time > 5.0*ecm->Tau)
       {
-         //double H = ecm->V_batt - ecm->V_oc + ecm->V_rc + ecm->I*ecm->R0;
          double H = fgic->V_meas - ecm->V_oc + ecm->V_rc + ecm->I*ecm->R0;
          if (fgic->h_dir == CHG) 
 	 {

@@ -1,7 +1,7 @@
 set load_type 1
 set dutycycle 0.5
 set period 100
-log start h.csv I_fgic Tau_fgic Tau_batt H_batt H_fgic V_batt V_fgic 
+log start h.csv V_batt V_fgic 
 set I_on 10 
 run until soc_fgic <= 0 || soc_batt <= 0
 set I_on -10 
