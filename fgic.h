@@ -56,6 +56,10 @@ typedef struct {
    double ah;                           // hysteresis decay rate 
    double I_sum;                        // REST current sum 
    int h_dir;                           // H table to update
+   bool update_h_en;                    // enable H table update
+   bool ukf_en;                         // enable ukf update
+   bool noise_en;                       // enable noise
+   bool offset_en;                      // enable offset
 }
 fgic_t;
 

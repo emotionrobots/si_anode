@@ -341,6 +341,22 @@ int params_init(sim_t *sim)
    sim->params[i].type = "%lf";
    sim->params[i++].value= &sim->fgic->ecm->V_rc;
 
+   sim->params[i].name = "update_h_en_fgic";
+   sim->params[i].type = "%b";
+   sim->params[i++].value= &sim->fgic->update_h_en;
+
+   sim->params[i].name = "ukf_en_fgic";
+   sim->params[i].type = "%b";
+   sim->params[i++].value= &sim->fgic->ukf_en;
+
+   sim->params[i].name = "noise_en_fgic";
+   sim->params[i].type = "%b";
+   sim->params[i++].value= &sim->fgic->noise_en;
+
+   sim->params[i].name = "offset_en_fgic";
+   sim->params[i].type = "%b";
+   sim->params[i++].value= &sim->fgic->offset_en;
+
    sim->params_sz = i;
    return i;
 }

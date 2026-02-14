@@ -842,10 +842,11 @@ int f_run_script(struct _menu *m, int argc, char **argv, void *p_usr)
 
    if (argc != 2) return -2;
 
-   memset(sim->script_fn, 0, FN_LEN);
-   strcpy(sim->script_fn, argv[1]);
+   char script_fn[FN_LEN];
+   memset(script_fn, 0, FN_LEN);
+   strcpy(script_fn, argv[1]);
 
-   FILE *fp = fopen(sim->script_fn, "r");
+   FILE *fp = fopen(script_fn, "r");
    if (fp == NULL) return -3;
 
    /* script line processing loop */
@@ -894,9 +895,57 @@ int f_run_script(struct _menu *m, int argc, char **argv, void *p_usr)
       }
    }
 
-   fclose(fp);
+   if (fp) fclose(fp);
+
    return 0;
 }
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn		int f_repeat(struct _menu *m, int argc, char **argv, void *p_usr)
+ *
+ *  @brief	Repeat a script <n> times
+ *
+ *  @note	> repeat <n> <script>
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static
+int f_repeat(struct _menu *m, int argc, char **argv, void *p_usr)
+{
+   int rc = 0;
+
+   if (m==NULL || p_usr==NULL || argv==NULL) return -1;
+   
+   if (argc != 3) { rc = -2; goto _err_ret; }
+   if (!util_is_numeric(argv[1])) { rc = -3; goto _err_ret; }
+
+   int n = atoi(argv[1]);
+   char script_fn[FN_LEN];
+
+   memset(script_fn, 0, FN_LEN);
+   strcpy(script_fn, argv[2]);
+
+   FILE *fp = fopen(script_fn, "r");
+   if (fp == NULL) { rc = -3; goto _err_ret; }
+
+   char *xargv[2] = { "script", argv[2] };
+   for (int i=0; i<n; i++)
+   {
+      if (0 != f_run_script(m, 2, xargv, p_usr))  
+      { 
+	 rc = -4; 
+	 goto _err_ret; 
+      }
+   }
+
+   if (fp) fclose(fp);
+
+_err_ret:
+   return rc;
+}
+
 
 #if 0
 /*!
@@ -984,6 +1033,10 @@ menu_t *app_menu_init()
    /* Compare command */
    menu_t *m_compare = menu_create("compare", "compare fgic & batt ecm model", "compare", "", f_compare);
    menu_add_peer(m_root, m_compare);
+
+   /* Repeat command */
+   menu_t *m_repeat = menu_create("repeat", "repeat a script <n> times", "repeat <n> <script>", "", f_repeat);
+   menu_add_peer(m_root, m_repeat);
 
 #if 0
    /* dummy placeholder commands */

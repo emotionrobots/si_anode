@@ -171,6 +171,11 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    fgic->ah = ALPHA_H;
    fgic->I_sum = 0.0;
    fgic->h_dir = REST;
+   fgic->update_h_en = true;
+   fgic->ukf_en = true;
+   fgic->noise_en = true;
+   fgic->offset_en = true;
+
 
    fgic->batt = batt;
    
@@ -185,9 +190,24 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    ecm_lookup_ocv(fgic->ecm, fgic->ecm->soc, &fgic->V_oc_est);
    ecm_lookup_ocv(fgic->ecm, fgic->ecm->soc, &fgic->ecm->V_oc);
 
-   fgic->I_meas = batt->ecm->I + fgic->I_noise * ((double)rand()/(double)RAND_MAX-0.5);
-   fgic->T_meas = batt->ecm->T_C + fgic->T_noise * ((double)rand()/(double)RAND_MAX-0.5);
-   fgic->V_meas = batt->ecm->V_batt + fgic->V_noise * ((double)rand()/(double)RAND_MAX-0.5);
+   fgic->I_meas = batt->ecm->I;
+   fgic->T_meas = batt->ecm->T_C;
+   fgic->V_meas = batt->ecm->V_batt;
+
+   if (fgic->noise_en)
+   {
+      fgic->I_meas += fgic->I_noise * ((double)rand()/(double)RAND_MAX-0.5);
+      fgic->T_meas += fgic->T_noise * ((double)rand()/(double)RAND_MAX-0.5);
+      fgic->V_meas += fgic->V_noise * ((double)rand()/(double)RAND_MAX-0.5);
+   }
+
+   if (fgic->offset_en)
+   {
+      fgic->I_meas += fgic->I_offset; 
+      fgic->T_meas += fgic->T_offset;
+      fgic->V_meas += fgic->V_offset;
+   }
+
    fgic->ecm->T_C = fgic->T_meas; 
 
 
@@ -304,9 +324,23 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    //---------------------------------------------------
    //  measure battery I, T, V with noise 
    //--------------------------------------------------- 
-   fgic->I_meas = fgic->batt->ecm->I + fgic->I_noise * ((double)rand()/(double)RAND_MAX-0.5) + fgic->I_offset;
-   fgic->T_meas = fgic->batt->ecm->T_C + fgic->T_noise * ((double)rand()/(double)RAND_MAX-0.5) + fgic->T_offset;
-   fgic->V_meas = fgic->batt->ecm->V_batt + fgic->V_noise * ((double)rand()/(double)RAND_MAX-0.5) + fgic->V_offset;
+   fgic->I_meas = fgic->batt->ecm->I;
+   fgic->T_meas = fgic->batt->ecm->T_C;
+   fgic->V_meas = fgic->batt->ecm->V_batt;
+
+   if (fgic->noise_en)
+   {
+      fgic->I_meas += fgic->I_noise * ((double)rand()/(double)RAND_MAX-0.5);
+      fgic->T_meas += fgic->T_noise * ((double)rand()/(double)RAND_MAX-0.5);
+      fgic->V_meas += fgic->V_noise * ((double)rand()/(double)RAND_MAX-0.5);
+   }
+
+   if (fgic->offset_en)
+   {
+      fgic->I_meas += fgic->I_offset;
+      fgic->T_meas += fgic->T_offset;
+      fgic->V_meas += fgic->V_offset;
+   }   
 
 
    //---------------------------------------------------
@@ -316,84 +350,84 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 
 
    //---------------------------------------------------
-   //  update H before UKF adjustment
+   //  Opportunistically learn H before UKF adjustment 
    //---------------------------------------------------
-#if 1
-   if (ecm->chg_state == REST && ecm->prev_chg_state != REST)
-      fgic->h_dir = ecm->prev_chg_state;
-
-   if (ecm->chg_state == REST)
-   {
-      if (fgic->rest_time > 5.0*ecm->Tau)
+   if (fgic->update_h_en)
+   { 
+      if (ecm->chg_state == REST)
       {
-         double H = fgic->V_meas - ecm->V_oc + ecm->V_rc + ecm->I*ecm->R0;
-         if (fgic->h_dir == CHG)
+         if (ecm->prev_chg_state != REST) fgic->h_dir = ecm->prev_chg_state;
+
+         if (fgic->rest_time > 5.0*ecm->Tau)
          {
-            util_update_tbl(ecm->params.h_chg_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, H);
-            printf("learned H_chg at t=%lf H=%lf\n", t, H);
+            double H = fgic->V_meas - ecm->V_oc + ecm->V_rc + (fgic->I_sum*ecm->R0/fgic->rest_time);
+            if (fgic->h_dir == CHG)
+            {
+               util_update_tbl(ecm->params.h_chg_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, H);
+               printf("learned H_chg at t=%lf H=%lf\n", t, H);
+            }
+            else if (fgic->h_dir == DSG)
+            {
+               util_update_tbl(ecm->params.h_dsg_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, H);
+               printf("learned H_dsg at t=%lf H=%lf\n", t, H);
+            }
+            else
+            {
+               goto _err_ret;
+            }
          }
-         else if (fgic->h_dir == DSG)
-         {
-            util_update_tbl(ecm->params.h_dsg_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, H);
-            printf("learned H_dsg at t=%lf H=%lf\n", t, H);
-         }
-         else
-         {
-            goto _err_ret;
-         }
+         fgic->I_sum += ecm->I;
+         fgic->rest_time += dt;
       }
-      fgic->I_sum += ecm->I;
-      fgic->rest_time += dt;
+      else
+      {
+         fgic->rest_time = 0.0;
+         fgic->I_sum = 0.0;
+      }
    }
-   else
-   {
-      fgic->rest_time = 0.0;
-      fgic->I_sum = 0.0;
-   }
-#endif
 
 
-#if 0
    //---------------------------------------------------
    //  update battery state with UKF  
    //---------------------------------------------------
-   double z_meas[2];
-   z_meas[0] = fgic->V_meas;
-   z_meas[1] = fgic->T_meas;
+   if (fgic->ukf_en)
+   {
+      double z_meas[2];
+      z_meas[0] = fgic->V_meas;
+      z_meas[1] = fgic->T_meas;
 
-   double u[2];
-   u[0] = fgic->I_meas;         // ecm->I updated by ecm_update() to be equal to fgic->I_meas
-   u[1] = T_amb_C;              // same for ecm->T_amb_C
+      double u[2];
+      u[0] = fgic->I_meas;         // ecm->I updated by ecm_update() to be equal to fgic->I_meas
+      u[1] = T_amb_C;              // same for ecm->T_amb_C
 
-   /* Predict x given u */
-   if (ukf_predict(fgic->ukf, u, dt, (void *)fgic) != UKF_OK) goto _err_ret;
-   /* Update x given z_meas */
-   if (ukf_update(fgic->ukf, z_meas, (void *)fgic) != UKF_OK) goto _err_ret;
+      /* Predict x given u */
+      if (ukf_predict(fgic->ukf, u, dt, (void *)fgic) != UKF_OK) goto _err_ret;
+      /* Update x given z_meas */
+      if (ukf_update(fgic->ukf, z_meas, (void *)fgic) != UKF_OK) goto _err_ret;
 
 
-   //---------------------------------------------------
-   //  refresh model params with updated states
-   //---------------------------------------------------
-   ecm->soc  = util_clamp(fgic->ukf->x[0], 0.0, 1.0);
-   ecm->V_rc = fgic->ukf->x[1];
-   ecm->T_C  = fgic->ukf->x[2];
+      /* refresh ECM model params with updated states */
+      ecm->soc  = util_clamp(fgic->ukf->x[0], 0.0, 1.0);
+      ecm->V_rc = fgic->ukf->x[1];
+      ecm->T_C  = fgic->ukf->x[2];
 
-   double R0, R1, C1;
-   ecm_lookup_r0(ecm, ecm->soc, &R0);
-   ecm->R0 = util_temp_adj(R0, ecm->Ea_R0, ecm->T_C, ecm->params.T_ref_C);
-   ecm_lookup_r1(ecm, ecm->soc, &R1);
-   ecm->R1 = util_temp_adj(R1, ecm->Ea_R1, ecm->T_C, ecm->params.T_ref_C);
-   ecm_lookup_c1(ecm, ecm->soc, &C1);
-   ecm->C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params.T_ref_C);
+      double R0, R1, C1;
+      ecm_lookup_r0(ecm, ecm->soc, &R0);
+      ecm->R0 = util_temp_adj(R0, ecm->Ea_R0, ecm->T_C, ecm->params.T_ref_C);
+      ecm_lookup_r1(ecm, ecm->soc, &R1);
+      ecm->R1 = util_temp_adj(R1, ecm->Ea_R1, ecm->T_C, ecm->params.T_ref_C);
+      ecm_lookup_c1(ecm, ecm->soc, &C1);
+      ecm->C1 = util_temp_adj(C1, ecm->Ea_C1, ecm->T_C, ecm->params.T_ref_C);
    
-   ecm->Tau = ecm->R1 * ecm->C1;
+      ecm->Tau = ecm->R1 * ecm->C1;
 
-   ecm_lookup_ocv(ecm, ecm->soc, &ecm->V_oc);
+      ecm_lookup_ocv(ecm, ecm->soc, &ecm->V_oc);
 
-   ecm_lookup_h(ecm, ecm->soc, &ecm->H);
+      ecm_lookup_h(ecm, ecm->soc, &ecm->H);
    
-   ecm->V_batt = (ecm->V_oc + ecm->H) - ecm->V_rc - ecm->I * ecm->R0;
-#endif
+      ecm->V_batt = (ecm->V_oc + ecm->H) - ecm->V_rc - ecm->I * ecm->R0;
+   }
+
 
    //---------------------------------------------------
    //  opportunistically learn R0, R1, C1
@@ -401,11 +435,10 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    double dV_batt = ecm->V_batt - ecm->prev_V_batt;
    double dV_rc = ecm->V_rc - ecm->prev_V_rc;
    double dI = ecm->I - ecm->prev_I;
+   double R0_est=0, C1_est=0; 
 
    if (ecm->chg_state == REST )
    {
-      double R0_est=0, C1_est=0; 
-
       /* 
        * Estimate R0 from by R0 = dV/dI 
        */
@@ -424,10 +457,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 	    /* adjust R0 to T_ref_C for proper table update */
 	    R0_est = -(dV_rc+dV_batt)/dI;
 	    R0_est = util_temp_unadj(R0_est, ecm->Ea_R0, ecm->T_C, ecm->params.T_ref_C);
-
-	    /* update R0 table */
-            util_update_tbl(ecm->params.r0_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, R0_est);
-
+             
 	    /* clear vrc_buf */
             fgic->buf_len = 0; 
 	    fgic->learning = true;
@@ -435,7 +465,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
       }
 
       /* 
-       * Estimate Tau 
+       * Estimate Tau -- note R0 and C1 will learn only after rest > 5.0*Tau 
        */
       if (fgic->learning) 
       {
@@ -459,56 +489,21 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 	    C1_est = -1.0/(r.slope*ecm->R1);
 	    C1_est = util_temp_unadj(C1_est, ecm->Ea_C1, ecm->T_C, ecm->params.T_ref_C);
 
-	    /* update C1 table */
+            /* update R0 & C1 tables */
+            util_update_tbl(ecm->params.r0_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, R0_est);
             util_update_tbl(ecm->params.c1_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, C1_est);
-
 	    fgic->buf_len = 0;
 	    fgic->learning = false;
          }
       } 
       else   /* not learning */
       {
-         fgic->buf_len = 0; 
-         fgic->learning = false;
+         fgic->buf_len = 0;     /* reset buffer len */ 
       }
    }
-
-
-#if 0
-   if (ecm->chg_state == REST && ecm->prev_chg_state != REST) 
-      fgic->h_dir = ecm->prev_chg_state;
-
-   if (ecm->chg_state == REST)
-   {
-      if (fgic->rest_time > 5.0*ecm->Tau)
-      {
-         double H = fgic->V_meas - ecm->V_oc + ecm->V_rc + ecm->I*ecm->R0;
-         if (fgic->h_dir == CHG) 
-	 {
-            util_update_tbl(ecm->params.h_chg_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, H);
-	    printf("learned H_chg at t=%lf H=%lf\n", t, H);
-	 }
-         else if (fgic->h_dir == DSG)
-	 {
-            util_update_tbl(ecm->params.h_dsg_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, H);
-	    printf("learned H_dsg at t=%lf H=%lf\n", t, H);
-	 }
-	 else
-	 {
-	    goto _err_ret; 
-	 }
-      }
-      fgic->I_sum += ecm->I;
-      fgic->rest_time += dt;
-   }
-   else
-   {
-      fgic->rest_time = 0.0;
-      fgic->I_sum = 0.0;
-   }
-#endif
 
    return 0;
+
 
 _err_ret:
    fgic->buf_len = 0; 
