@@ -7,4 +7,4 @@ run to 1000
 set I_on 0 
 compare Tau
 log stop
-plot tau1.csv
+plot file tau1.csv

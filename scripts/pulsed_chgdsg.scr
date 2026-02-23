@@ -7,6 +7,6 @@ run until soc_batt <= 0 || soc_fgic <= 0
 set I_on -10 
 run until soc_batt >= 1 || soc_fgic >= 1 
 log stop
-plot ocv.csv
+plot file ocv.csv
 
 

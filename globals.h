@@ -91,6 +91,9 @@
 #define MAX_COND		(3)		/* max number of conditionals allowed */
 #define NAME_LEN		(20)		/* max param name length */
 
+#define NUM_RC			(6.0)		/* number of (R1*C1) to sample */
+
+
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  * string-enabled parameters

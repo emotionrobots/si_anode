@@ -36,6 +36,8 @@ typedef struct
    double prev_I;				/* previous current */
    double prev_V_batt;				/* previous Vrc voltage */
    double prev_V_rc;				/* previous Vrc voltage */
+   double prev_V_oc;				/* previous Vrc voltage */
+   double prev_H;				/* previous Vrc voltage */
 
    /* Arrhenius activation energies (J/mol) for R0, R1, C1 */
    double Ea_R0;

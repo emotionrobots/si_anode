@@ -5,6 +5,6 @@ set load_type 1
 log start t11.csv V_batt V_fgic
 run until soc_batt <= 0 || soc_fgic <= 0 
 log stop
-plot t11.csv
+plot file t11.csv
 
 

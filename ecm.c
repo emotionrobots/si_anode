@@ -111,14 +111,14 @@ int ecm_init(ecm_t *ecm, flash_params_t *p, double T0_C)
    ecm->V_oc = ecm->params.ocv_tbl[SOC_GRIDS-1];
    ecm->V_rc = 0.0;
    ecm->V_batt = ecm->V_oc;
+   ecm->H = ecm->params.h_dsg_tbl[SOC_GRIDS-1];
    ecm->prev_V_batt = ecm->V_batt;
    ecm->prev_V_rc = ecm->V_rc;
+   ecm->prev_V_oc = ecm->V_oc;
+   ecm->prev_H = ecm->H;
    ecm->prev_I = 0.0;
    ecm->I = ecm->prev_I;
    ecm->T_C = T0_C;
-
-   /* Hysteresis */
-   ecm->H = ecm->params.h_dsg_tbl[SOC_GRIDS-1];
 
    /* R0, R1, C1 */
    ecm_lookup_r0(ecm, ecm->soc, &ecm->R0);
@@ -265,8 +265,17 @@ int ecm_update(ecm_t *ecm, double I, double T_amb_C, double t, double dt)
 {
     (void)t;
 
+
     double R0=0.0, C1=0.0, R1=0.0;
     int rc = 0;
+
+
+    ecm->prev_I = ecm->I;
+    ecm->prev_V_batt = ecm->V_batt;
+    ecm->prev_V_rc = ecm->V_rc;
+    ecm->prev_V_oc = ecm->V_oc;
+    ecm->prev_H = ecm->H;
+
     ecm->I = I;
     ecm->T_amb_C = T_amb_C;
    
@@ -318,7 +327,6 @@ int ecm_update(ecm_t *ecm, double I, double T_amb_C, double t, double dt)
     /* update V_batt */
     ecm->V_batt = (ecm->V_oc + ecm->H) - ecm->V_rc - ecm->I * ecm->R0;
 
-    ecm_update_delta(ecm);
 
     return rc;
 }

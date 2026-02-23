@@ -1,7 +1,7 @@
-set I_on 10 
-set dutycycle 0.5
-set period 100
-set load_type 1
-run another 300 
+set load_type 0
+set I_sys 10 
+run another 1 
+set I_sys 0
+run another 2
 
 

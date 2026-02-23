@@ -170,11 +170,12 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    fgic->dI_min = 1e6;
    fgic->ah = ALPHA_H;
    fgic->I_sum = 0.0;
-   fgic->h_dir = REST;
-   fgic->update_h_en = true;
+   fgic->h_dir = DSG;          
+   fgic->update_h_en = false;
+   fgic->update_model_en = true;
    fgic->ukf_en = true;
-   fgic->noise_en = true;
-   fgic->offset_en = true;
+   fgic->noise_en = false;
+   fgic->offset_en = false;
 
 
    fgic->batt = batt;
@@ -246,6 +247,11 @@ fgic_t *fgic_create(batt_t *batt, flash_params_t *p, double T0_C)
    /* measurement noise */
    double R_meas = fgic->V_noise * fgic->V_noise;
    double T_meas = fgic->T_noise * fgic->T_noise;
+   if (!fgic->noise_en)
+   {
+      R_meas = 1e-6; 
+      T_meas = 1e-6;
+   }
    double R[4] = { 
       R_meas,    0.0,
          0.0, T_meas
@@ -347,7 +353,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    //  update internal ECM model 
    //---------------------------------------------------
    ecm_update(ecm, fgic->I_meas, T_amb_C, t, dt); 
-
+   if (ecm->chg_state != REST) fgic->h_dir = ecm->chg_state;
 
    //---------------------------------------------------
    //  Opportunistically learn H before UKF adjustment 
@@ -356,9 +362,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    { 
       if (ecm->chg_state == REST)
       {
-         if (ecm->prev_chg_state != REST) fgic->h_dir = ecm->prev_chg_state;
-
-         if (fgic->rest_time > 5.0*ecm->Tau)
+         if (fgic->rest_time > NUM_RC*ecm->Tau)
          {
             double H = fgic->V_meas - ecm->V_oc + ecm->V_rc + (fgic->I_sum*ecm->R0/fgic->rest_time);
             if (fgic->h_dir == CHG)
@@ -370,10 +374,6 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
             {
                util_update_tbl(ecm->params.h_dsg_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, H);
                printf("learned H_dsg at t=%lf H=%lf\n", t, H);
-            }
-            else
-            {
-               goto _err_ret;
             }
          }
          fgic->I_sum += ecm->I;
@@ -434,10 +434,12 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
    //---------------------------------------------------
    double dV_batt = ecm->V_batt - ecm->prev_V_batt;
    double dV_rc = ecm->V_rc - ecm->prev_V_rc;
+   double dH = ecm->H - ecm->prev_H;
+   double dV_oc = ecm->V_oc - ecm->prev_V_oc;
    double dI = ecm->I - ecm->prev_I;
    double R0_est=0, C1_est=0; 
 
-   if (ecm->chg_state == REST )
+   if ( fgic->update_model_en && ecm->chg_state == REST )
    {
       /* 
        * Estimate R0 from by R0 = dV/dI 
@@ -455,8 +457,9 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
          if (fabs(dI) > ecm->I_quit)
 	 {
 	    /* adjust R0 to T_ref_C for proper table update */
-	    R0_est = -(dV_rc+dV_batt)/dI;
+	    R0_est = -(dV_batt-dV_oc-dH+dV_rc)/dI;
 	    R0_est = util_temp_unadj(R0_est, ecm->Ea_R0, ecm->T_C, ecm->params.T_ref_C);
+            util_update_tbl(ecm->params.r0_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, R0_est);
              
 	    /* clear vrc_buf */
             fgic->buf_len = 0; 
@@ -470,7 +473,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
       if (fgic->learning) 
       {
 	 /* record VRC data if buffer is not full and is less 99 percent */ 
-         if ( (fgic->buf_len*dt < 5.0*ecm->Tau) || fgic->buf_len < VRC_BUF_SZ )
+         if ( (fgic->buf_len*dt < NUM_RC*ecm->Tau) && fgic->buf_len < VRC_BUF_SZ )
 	 {
 	    fgic->vrc_x[fgic->buf_len] = ecm->V_rc;
 	    fgic->vrc_y[fgic->buf_len] = dV_rc/dt;
@@ -489,8 +492,7 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
 	    C1_est = -1.0/(r.slope*ecm->R1);
 	    C1_est = util_temp_unadj(C1_est, ecm->Ea_C1, ecm->T_C, ecm->params.T_ref_C);
 
-            /* update R0 & C1 tables */
-            util_update_tbl(ecm->params.r0_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, R0_est);
+            /* update C1 tables */
             util_update_tbl(ecm->params.c1_tbl, ecm->params.soc_tbl, SOC_GRIDS, ecm->soc, C1_est);
 	    fgic->buf_len = 0;
 	    fgic->learning = false;

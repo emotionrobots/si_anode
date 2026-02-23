@@ -57,6 +57,7 @@ typedef struct {
    double I_sum;                        // REST current sum 
    int h_dir;                           // H table to update
    bool update_h_en;                    // enable H table update
+   bool update_model_en;                // enable ECM model update
    bool ukf_en;                         // enable ukf update
    bool noise_en;                       // enable noise
    bool offset_en;                      // enable offset

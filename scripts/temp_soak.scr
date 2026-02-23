@@ -2,4 +2,4 @@ set T_amb_C 50.0
 log start temp1.csv T_batt T_amb_C 
 run until T_batt >= 49.5 
 log stop
-plot temp1.csv
+plot file temp1.csv

@@ -461,7 +461,8 @@ bool trace_name_valid(sim_t *sim, char *trace_name)
          if (0==strcmp("%d", sim->params[k].type)  ||
              0==strcmp("%ld", sim->params[k].type) ||
              0==strcmp("%f", sim->params[k].type)  ||
-             0==strcmp("%lf", sim->params[k].type))
+             0==strcmp("%lf", sim->params[k].type) ||
+             0==strcmp("%b", sim->params[k].type))
          {
             valid = true;
          }
@@ -476,7 +477,229 @@ bool trace_name_valid(sim_t *sim, char *trace_name)
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
- *  @fn		int f_plot(struct _menu *m, int argc, char **argv, void *p_usr)
+ *  @fn		int f_plot_table(struct _menu *m, int argc, char **argv, void *p_usr)
+ *
+ *  @brief	Plot specified tabular variable, each a table indexed over SOC_GRIDS
+ *
+ *  @note	plot table <list of tabular vars>  
+ *
+ *---------------------------------------------------------------------------------------------------------------------
+ */
+static
+int f_plot_table(struct _menu *m, int argc, char **argv, void *p_usr)
+{
+   int rc = 0;
+   scope_plot_t *p = NULL;
+   SDL_Window *win = NULL;
+   SDL_Renderer *ren = NULL;
+   scope_trace_desc_t tr[MAX_PARAMS];
+
+
+   if (m==NULL || p_usr==NULL || argv==NULL) return -1;
+   sim_t *sim = (sim_t *)p_usr;
+
+   if (argc < 2) { rc = -1; goto _err_ret; }
+   int curve_count = argc - 1;
+   printf("curve_count=%d\n", curve_count);
+
+   for (int i=0; i < curve_count; i++)
+   {
+      char *varname = argv[i+1];
+      if (0==strcmp(varname, "R0_batt"))
+      {
+         tr[i].name = str_dup(argv[i+1]); 
+         tr[i].color = palette(i);
+      } 
+      else if (0==strcmp(varname, "R1_batt"))
+      {
+         tr[i].name = str_dup(argv[i+1]); 
+         tr[i].color = palette(i);
+      } 
+      else if (0==strcmp(varname, "C1_batt"))
+      {
+         tr[i].name = str_dup(argv[i+1]); 
+         tr[i].color = palette(i);
+      } 
+      else if (0==strcmp(varname, "OCV_batt"))
+      {
+         tr[i].name = str_dup(argv[i+1]); 
+         tr[i].color = palette(i);
+      }
+      else if (0==strcmp(varname, "H_chg_batt"))
+      {
+         tr[i].name = str_dup(argv[i+1]); 
+         tr[i].color = palette(i);
+      }
+      else if (0==strcmp(varname, "H_dsg_batt"))
+      {
+         tr[i].name = str_dup(argv[i+1]); 
+         tr[i].color = palette(i);
+      }
+      else if (0==strcmp(varname, "R0_fgic"))
+      {
+         tr[i].name = str_dup(argv[i+1]);
+         tr[i].color = palette(i);
+      }
+      else if (0==strcmp(varname, "R1_fgic"))
+      {
+         tr[i].name = str_dup(argv[i+1]);
+         tr[i].color = palette(i);
+      }
+      else if (0==strcmp(varname, "C1_fgic"))
+      {
+         tr[i].name = str_dup(argv[i+1]);
+         tr[i].color = palette(i);
+      }
+      else if (0==strcmp(varname, "OCV_fgic"))
+      {
+         tr[i].name = str_dup(argv[i+1]);
+         tr[i].color = palette(i);
+      }
+      else if (0==strcmp(varname, "H_chg_fgic"))
+      {
+         tr[i].name = str_dup(argv[i+1]);
+         tr[i].color = palette(i);
+      }
+      else if (0==strcmp(varname, "H_dsg_fgic"))
+      {
+         tr[i].name = str_dup(argv[i+1]);
+         tr[i].color = palette(i);
+      }
+      else
+      {
+         printf("cannot recognized %s\n", varname);
+         rc = -2;
+         goto _err_ret;
+      }
+   }
+
+   // Init SDL renderer
+   if (SDL_Init(SDL_INIT_VIDEO) != 0) { rc = -5; goto _err_ret; }
+   win = SDL_CreateWindow("ScopeTrace",
+                          SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                          1100, 650, SDL_WINDOW_SHOWN);
+   if (!win) { rc = -2; goto _err_ret; }
+
+   ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+   if (!ren) { rc = -3; goto _err_ret; }
+
+
+   // Create plot object with default config
+   scope_plot_cfg_t cfg = scope_plot_default_cfg();
+   p = scope_plot_create(win, ren, curve_count, tr, &cfg);
+   if (!p) { rc = -3; goto _err_ret; }
+
+
+   // Prepare trace array 
+   double *y = (double*)calloc((size_t)curve_count, sizeof(double));
+   double x_min = sim->fgic->ecm->params.soc_tbl[0];
+   double x_max = sim->fgic->ecm->params.soc_tbl[SOC_GRIDS-1];
+
+#if 1      
+   for (int k=0; k<SOC_GRIDS; k++)
+   {
+      double x = sim->fgic->ecm->params.soc_tbl[k];
+      for (int i=0; i < curve_count; i++)
+      {
+         char *varname = argv[i+1];
+         if (0==strcmp(varname, "R0_batt"))
+         {
+            y[i] = sim->batt->ecm->params.r0_tbl[k];   
+         }
+         else if (0==strcmp(varname, "R1_batt"))
+         {
+            y[i] = sim->batt->ecm->params.r1_tbl[k];   
+         }
+	 else if (0==strcmp(varname, "C1_batt"))
+	 {
+            y[i] = sim->batt->ecm->params.c1_tbl[k];   
+	 }
+	 else if (0==strcmp(varname, "OCV_batt"))
+	 {
+            y[i] = sim->batt->ecm->params.ocv_tbl[k];   
+	 }
+	 else if (0==strcmp(varname, "H_chg_batt"))
+	 {
+            y[i] = sim->batt->ecm->params.ocv_tbl[k] + sim->batt->ecm->params.h_chg_tbl[k];   
+	 }
+	 else if (0==strcmp(varname, "H_dsg_batt"))
+	 {
+            y[i] = sim->batt->ecm->params.ocv_tbl[k] + sim->batt->ecm->params.h_dsg_tbl[k];   
+	 }
+	 else if (0==strcmp(varname, "R0_fgic"))
+	 {
+            y[i] = sim->fgic->ecm->params.r0_tbl[k];   
+	 }
+	 else if (0==strcmp(varname, "R1_fgic"))
+	 {
+            y[i] = sim->fgic->ecm->params.r1_tbl[k];   
+	 }
+	 else if (0==strcmp(varname, "C1_fgic"))
+	 {
+            y[i] = sim->fgic->ecm->params.c1_tbl[k];   
+	 }
+	 else if (0==strcmp(varname, "OCV_fgic"))
+	 {
+            y[i] = sim->fgic->ecm->params.ocv_tbl[k];   
+	 }
+	 else if (0==strcmp(varname, "H_chg_fgic"))
+	 {
+            y[i] = sim->fgic->ecm->params.ocv_tbl[k] + sim->fgic->ecm->params.h_chg_tbl[k];   
+	 }
+	 else if (0==strcmp(varname, "H_dsg_fgic"))
+	 {
+            y[i] = sim->fgic->ecm->params.ocv_tbl[k] + sim->fgic->ecm->params.h_dsg_tbl[k];   
+	 }
+      }
+      scope_plot_push(p, x, y);
+   } // for k
+	
+#endif
+   if (y) free(y);
+
+
+   // Set plot title and X label
+   scope_plot_set_title(p, "Table Chart");
+   scope_plot_set_x_label(p, "SOC");
+   scope_plot_set_x_range(p, x_min, x_max);
+   scope_plot_render(p);
+   SDL_RenderPresent(ren);
+
+
+   // Event loop
+   bool quit = false;
+   while (!quit)
+   {
+      SDL_Event e;
+      while (SDL_PollEvent(&e))
+      {
+         if (e.type == SDL_QUIT) quit = true;
+         if (e.type == SDL_KEYDOWN) {
+             SDL_Keycode k = e.key.keysym.sym;
+             if (k == SDLK_ESCAPE || k == SDLK_q) quit = true;
+         }
+      }
+      SDL_Delay(16);
+   }
+
+
+_err_ret:
+   if (p != NULL) scope_plot_destroy(p);
+   if (ren != NULL) SDL_DestroyRenderer(ren);
+   if (win != NULL) SDL_DestroyWindow(win);
+   SDL_Quit();
+
+   return rc;
+
+}
+
+
+
+
+/*!
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ *  @fn		int f_plot_file(struct _menu *m, int argc, char **argv, void *p_usr)
  *
  *  @brief	Plot a saved CSV file
  *
@@ -485,7 +708,7 @@ bool trace_name_valid(sim_t *sim, char *trace_name)
  *---------------------------------------------------------------------------------------------------------------------
  */
 static
-int f_plot(struct _menu *m, int argc, char **argv, void *p_usr)
+int f_plot_file(struct _menu *m, int argc, char **argv, void *p_usr)
 {
    int rc = 0;
    scope_plot_t *p = NULL;
@@ -823,7 +1046,6 @@ _err_ret:
 
 
 
-
 /*!
  *---------------------------------------------------------------------------------------------------------------------
  *
@@ -1026,9 +1248,17 @@ menu_t *app_menu_init()
    menu_t *m_log = menu_create("log", "log data to file", "log <start <file> <data0> <data1> ...> | <stop>", "", f_log);
    menu_add_peer(m_root, m_log);
 
-   /* plot command */
-   menu_t *m_plot = menu_create("plot", "plot a csv file", "plot <file>", "", f_plot);
+   /* plot file command */
+   menu_t *m_plot = menu_create("plot", "plot <file | table>", "", "", NULL);
    menu_add_peer(m_root, m_plot);
+
+   /* plot file command */
+   menu_t *m_plot_file = menu_create("file", "plot file", "plot file <file>", "", f_plot_file);
+   menu_add_child(m_plot, m_plot_file);
+
+   /* plot table command */
+   menu_t *m_plot_table = menu_create("table", "plot table", "plot table <OCV|R0|R1|C1|H_dsg|H_chg>", "", f_plot_table);
+   menu_add_peer(m_plot_file, m_plot_table);
 
    /* Compare command */
    menu_t *m_compare = menu_create("compare", "compare fgic & batt ecm model", "compare", "", f_compare);
@@ -1037,6 +1267,7 @@ menu_t *app_menu_init()
    /* Repeat command */
    menu_t *m_repeat = menu_create("repeat", "repeat a script <n> times", "repeat <n> <script>", "", f_repeat);
    menu_add_peer(m_root, m_repeat);
+
 
 #if 0
    /* dummy placeholder commands */

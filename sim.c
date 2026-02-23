@@ -345,6 +345,10 @@ int params_init(sim_t *sim)
    sim->params[i].type = "%b";
    sim->params[i++].value= &sim->fgic->update_h_en;
 
+   sim->params[i].name = "update_model_en_fgic";
+   sim->params[i].type = "%b";
+   sim->params[i++].value= &sim->fgic->update_model_en;
+
    sim->params[i].name = "ukf_en_fgic";
    sim->params[i].type = "%b";
    sim->params[i++].value= &sim->fgic->ukf_en;
@@ -796,7 +800,9 @@ int sim_update_log(sim_t *sim)
          else
             snprintf(fmt, sizeof(fmt), "%s,", type);
 
-         if (0==strcmp(type, "%d")) 
+         if (0==strcmp(type, "%b")) 
+            fprintf(sim->logfp, fmt, *(int *)sim->params[idx].value); 
+	 else if (0==strcmp(type, "%d")) 
             fprintf(sim->logfp, fmt, *(int *)sim->params[idx].value); 
          else if (0==strcmp(type, "%ld")) 
             fprintf(sim->logfp, fmt, *(long *)sim->params[idx].value); 
