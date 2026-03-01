@@ -1,9 +1,22 @@
-set I_sys 10 
+#-------------------------------------------------------------
+#
+#  @file  	cc_chgdsg.scr
+#
+#  @brief	Constant current discharge and charge
+#
+#-------------------------------------------------------------
 set load_type 0
 log start ccv.csv soc_batt V_batt soc_fgic V_fgic
+
+#  Discharge 10A until SOC == 0
+set I_sys 10 
 run until soc_batt <= 0 || soc_fgic <= 0 
+
+#  Charge 10A until SOC == 1
 set I_sys -10 
 run until soc_batt >= 1 || soc_fgic >= 1 
+
+# Stop logging and plot the data 
 log stop
 plot file ccv.csv
 

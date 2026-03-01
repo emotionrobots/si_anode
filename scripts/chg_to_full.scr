@@ -1,0 +1,11 @@
+#-------------------------------------------------------------
+#
+#  @file	chg_to_full.scr
+#
+#  @brief  	Charge the battery to full
+#
+#-------------------------------------------------------------
+set load_type 0
+set I_sys -5 
+run until soc_fgic >= 1 || soc_batt >= 1
+

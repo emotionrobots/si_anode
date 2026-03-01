@@ -1,0 +1,11 @@
+#-------------------------------------------------------------
+#
+#  @file	dsg_to_empty.scr
+#
+#  @brief  	Discharge the battery to empty 
+#
+#-------------------------------------------------------------
+set load_type 0
+set I_sys 5 
+run until soc_fgic <= 0 || soc_batt <= 0
+

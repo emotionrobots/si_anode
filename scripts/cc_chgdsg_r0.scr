@@ -1,9 +1,20 @@
-set I_sys 10 
+#--------------------------------------------------------------
+# @file		cc_chgdsg_r0.scr
+#
+# @brief	10A charging and discharging while showing R0
+#--------------------------------------------------------------
 set load_type 0
 log start r0.csv R0_batt R0_fgic
+
+# Discharge 10A until SOC==0
+set I_sys 10 
 run until soc_batt <= 0 || soc_fgic <= 0 
+
+# Charge 10A until SOC==1
 set I_sys -10 
 run until soc_batt >= 1 || soc_fgic >= 1 
+
+# Stop logging and plot
 log stop
 plot file r0.csv
 

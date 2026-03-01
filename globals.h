@@ -24,11 +24,11 @@
 #define TEMP_0                  (25.0)          /* Degree C */
 #define VRC_BUF_SZ              (256)           /* VRC buffer size */
 #define SOC_GRIDS               (21)            /* SOC grip points */
-#define MAX_RUN_TIME		(1000000)	/* max simulation time in sec */
+#define MAX_RUN_TIME		(10000000)	/* max simulation time in sec */
 #define FGIC_PERIOD_MS		(250)		/* FGIC run period (msec) */
 #define DEFAULT_CC		(1)		/* Default charging current (A) */
 #define DEFAULT_CV		(4.2)		/* Default charging voltage (V) */
-#define DEFAULT_I_QUIT          (0.02)          /* Quit current (A) */
+#define DEFAULT_I_QUIT          (0.002)         /* Quit current (A) */
 #define MAX_LINE_SZ		(200)		/* max command line size */
 #define MAX_TOKENS		(10)		/* max number of command line tokens */
 #define MAX_PARAMS		(100)		/* max number of string-enabled parameters */
@@ -42,9 +42,9 @@
 #define BATT_H_DSG_TBL		NMC_H_DSG_TBL	/* H_DSG table */
 #define BATT_H_CHG_TBL		NMC_H_CHG_TBL	/* H_CHG table */
 
-#if 0
-#define FGIC_H_DSG_TBL		ZERO_H_DSG_TBL	/* H_DSG table */
-#define FGIC_H_CHG_TBL		ZERO_H_CHG_TBL	/* H_CHG table */
+#if 1
+#define FGIC_H_DSG_TBL		NMC_H_DSG_TBL	/* H_DSG table */
+#define FGIC_H_CHG_TBL		NMC_H_CHG_TBL	/* H_CHG table */
 #else
 #define FGIC_H_DSG_TBL		NMC2_H_DSG_TBL	/* H_DSG table */
 #define FGIC_H_CHG_TBL		NMC2_H_CHG_TBL	/* H_CHG table */
@@ -91,7 +91,7 @@
 #define MAX_COND		(3)		/* max number of conditionals allowed */
 #define NAME_LEN		(20)		/* max param name length */
 
-#define NUM_RC			(6.0)		/* number of (R1*C1) to sample */
+#define NUM_RC			(5.0)		/* number of (R1*C1) to sample */
 
 
 /*!

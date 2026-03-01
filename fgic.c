@@ -444,7 +444,8 @@ int fgic_update(fgic_t *fgic, double T_amb_C, double t, double dt)
       /* 
        * Estimate R0 from by R0 = dV/dI 
        */
-      if (ecm->prev_chg_state != REST) 
+      //if (ecm->prev_chg_state != REST) 
+      if (ecm->prev_chg_state == DSG) 
       {
 	 /* update dV_min and dV_max */
 	 if (fabs(dV_batt) > fgic->dV_max) fgic->dV_max = fabs(dV_batt);

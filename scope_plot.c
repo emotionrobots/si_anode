@@ -110,7 +110,7 @@ scope_plot_cfg_t scope_plot_default_cfg(void)
     c.margin_bottom = 55;
 
     c.y_padding_frac = 0.05f;
-    c.max_points     = 40000;
+    c.max_points     = 24000000;
 
     c.ttf_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
     c.font_px  = 14;

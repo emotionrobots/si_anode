@@ -500,7 +500,6 @@ int f_plot_table(struct _menu *m, int argc, char **argv, void *p_usr)
 
    if (argc < 2) { rc = -1; goto _err_ret; }
    int curve_count = argc - 1;
-   printf("curve_count=%d\n", curve_count);
 
    for (int i=0; i < curve_count; i++)
    {
@@ -1084,6 +1083,7 @@ int f_run_script(struct _menu *m, int argc, char **argv, void *p_usr)
       line_number++;
       if (fgets(linebuf, sizeof(linebuf), fp) != NULL)
       {
+         if (linebuf[0] == '#') continue;
          printf("-> %s\n", linebuf); 
          xargc = 0;
          memset(xargv, 0, MAX_TOKENS*sizeof(char *));

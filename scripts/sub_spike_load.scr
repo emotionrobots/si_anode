@@ -1,0 +1,34 @@
+#-------------------------------------------------------------
+#
+#  @file	sub_spike_load.scr
+#
+#  @brief	Spike load one cycle
+#
+#-------------------------------------------------------------
+set load_type 0
+
+# DSG 1 sec @10A
+set I_sys 10 
+run another 1 
+
+# DSG 5 sec @5A
+set I_sys 5 
+run another 20 
+
+# REST 100 sec 
+set I_sys 0 
+run another 100 
+
+# CHG 1 sec @5A 
+set I_sys -5 
+run another 1 
+
+# CHG 20 sec @2.5A 
+set I_sys -2.5 
+run another 20 
+
+# REST 100 sec 
+set I_sys 0 
+run another 100 
+
+

@@ -1,0 +1,11 @@
+#-------------------------------------------------------------
+#
+#  @file	sub_full_cycle.scr
+#
+#  @brief  	DSG to empty followed by CHG to full 
+#
+#-------------------------------------------------------------
+set load_type 0
+run script scripts/dsg_to_empty.scr 
+run script scripts/chg_to_full.scr 
+

@@ -601,20 +601,22 @@ void *sim_loop(void *arg)
       }
       UNLOCK(&sim->mtx); 
 
-      if (rc != 0) goto _err_ret;
+      if (rc != 0) 
+      {
+         printf("sim_update() error at t=%lf\n", sim->t); 
+	 sim->pause = true;
+      }
 
       if (done) break;
 
       sched_yield();
    }
- 
+
    printf("run completed at t=%lf (soc_batt=%lf, V_batt=%lf)\n", 
-           sim->t, sim->batt->ecm->soc, sim->batt->ecm->V_batt);
+             sim->t, sim->batt->ecm->soc, sim->batt->ecm->V_batt);
+
    return NULL;
 
-_err_ret:
-   printf("sim_update() error at t=%lf\n", sim->t); 
-   return NULL;
 }
 
 
